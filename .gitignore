@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Godot generated cache
+**/.godot/
+
+# Local generated scratch output
+**/tmp/
+__pycache__/
+*.pyc
+create_yywj_materials.py
+
+# Logs and movie capture output
+*.log
+*.avi
+*.wav
