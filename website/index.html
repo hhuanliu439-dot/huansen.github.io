@@ -173,6 +173,14 @@
   .project-heading p {
     margin: 0; font-size: 16px; line-height: 1.9; color: #4b4b4b; font-weight: 350;
   }
+  .project-brief-list {
+    display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start;
+  }
+  .project-brief-list span {
+    display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border-radius: 999px;
+    border: 1px solid rgba(0,0,0,0.14); background: rgba(255,255,255,0.72);
+    color: #4b4b4b; font-size: 13px; font-weight: 700; letter-spacing: 0;
+  }
   .project-filter {
     display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 28px;
   }
@@ -340,6 +348,9 @@
   body.pop-theme .project-empty-note { color: #000; font-weight: 900; }
   body.pop-theme .project-heading h2 {
     color: #fff; -webkit-text-stroke: 3px #000; text-shadow: 10px 10px 0 #000;
+  }
+  body.pop-theme .project-brief-list span {
+    background: #fff; color: #000; border: 3px solid #000; border-radius: 0; box-shadow: 6px 6px 0 #000; font-weight: 900;
   }
   body.pop-theme .project-filter button,
   body.pop-theme .project-card {
@@ -523,7 +534,11 @@
       <div class="project-kicker">PROJECT INDEX / 求职作品索引</div>
       <div class="project-heading">
         <h2>Project Map</h2>
-        <p>把作品按招聘方向拆开：游戏策划看规则与反馈，交互体验看用户路径，AI创意看工具流程，视觉影像看叙事氛围。</p>
+        <div class="project-brief-list" aria-label="作品分类说明">
+          <span>游戏策划：规则与反馈</span>
+          <span>交互体验：用户路径</span>
+          <span>AI创意：工具流程</span>
+        </div>
       </div>
 
       <div class="project-filter" aria-label="项目分类筛选">
