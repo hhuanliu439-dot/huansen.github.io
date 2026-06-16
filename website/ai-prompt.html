@@ -1,0 +1,2658 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AI Game Asset Workflow Studio</title>
+<style>
+:root{--bg:#0d1117;--bg2:#161b22;--bg3:#21262d;--bgAccent:#0a1a2e;--border:#30363d;--fg:#c9d1d9;--fg2:#8b949e;--fgDim:#484f58;--accent:#58a6ff;--green:#238636;--greenHover:#2ea043;--geminiBg:#1a3a2a;--geminiFg:#3fb950;--geminiBorder:#1b5430;--copyBg:#1f3a5f;--copyBorder:#2d4f7c;--codeFg:#7ee787}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--fg);height:100vh;display:flex;flex-direction:column}
+.header{background:var(--bg2);border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;flex-shrink:0;gap:16px}
+.header h1{font-size:17px;color:var(--accent);display:flex;align-items:center;gap:10px;line-height:1.35}
+.header h1 span{font-weight:400;color:var(--fg2);font-size:11px}
+.main{flex:1;display:grid;grid-template-columns:minmax(540px,600px) 1fr;overflow:hidden}
+.left{overflow-y:auto;padding:24px 24px 28px;border-right:1px solid var(--border)}.right{overflow-y:auto;padding:22px 24px 28px}
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px}
+.panel-title{font-size:12px;font-weight:700;color:var(--fg2);padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:.55px}
+.panel-content{padding:18px}
+.form-group{margin-bottom:16px}
+.form-label{font-size:12px;color:var(--fg2);margin-bottom:7px;display:block;line-height:1.35}
+input,select,textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:11px 12px;color:var(--fg);font-size:13px;font-family:inherit;transition:border-color .2s;line-height:1.45}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 16px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;border:none;transition:.2s;line-height:1.3}
+.btn-primary{background:var(--green);color:#fff;width:100%;padding:14px 18px;font-size:14px;border-radius:11px;margin-top:4px}
+.btn-primary:hover{background:var(--greenHover)}
+.btn-gemini{background:var(--geminiBg);color:var(--geminiFg);border:1px solid var(--geminiBorder);width:100%;padding:12px 14px;font-size:13px}
+.btn-gemini:hover{background:var(--geminiBorder)}
+.btn-copy{background:var(--copyBg);color:var(--accent);border:1px solid var(--copyBorder)}
+.btn-copy:hover{background:var(--copyBorder)}
+.btn-sm{background:var(--bg3);color:var(--fg);border:1px solid var(--border);font-size:12px;padding:9px 12px}
+.btn-sm:hover{background:var(--border)}
+.asset-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.asset-card{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:14px 12px;cursor:pointer;transition:.15s;text-align:center;min-height:96px;display:flex;flex-direction:column;justify-content:center}
+.asset-card:hover,.asset-card.selected{border-color:var(--accent)}
+.asset-card.selected{background:var(--bgAccent)}
+.asset-card .icon{font-size:27px;margin-bottom:7px}
+.asset-card .name{font-size:13px;font-weight:700;color:var(--fg);line-height:1.3}
+.asset-card .desc{font-size:10px;color:var(--fg2);margin-top:5px;line-height:1.35}
+.output-panel{display:none}.output-panel.visible{display:block}
+.tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{padding:8px 12px;font-size:11px;color:var(--fg2);cursor:pointer;border-bottom:2px solid transparent;transition:.15s;font-weight:500;user-select:none}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.prompt-block{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px}
+.prompt-block .label{font-size:10px;color:var(--fg2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.prompt-block pre{font-size:11px;color:var(--codeFg);white-space:pre-wrap;line-height:1.5;margin:0;font-family:"SF Mono","Fira Code","Consolas",monospace}
+.prompt-combined{background:var(--bgAccent);border-color:var(--copyBorder)}
+.prompt-combined pre{color:var(--fg)}
+.step{display:flex;align-items:flex-start;gap:8px;margin-bottom:12px}
+.step-num{background:var(--green);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.step-text{font-size:11px;color:var(--fg2);line-height:1.5}
+.step-text strong{color:var(--fg)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:8px 18px;border-radius:8px;font-size:12px;z-index:999;opacity:0;transition:opacity .3s}
+.toast.show{opacity:1}
+.result-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:12px}
+.result-card h3{font-size:18px;color:var(--accent);margin-bottom:4px}
+.result-card .sub{font-size:12px;color:var(--fg2);margin-bottom:10px}
+.result-section{margin-top:10px}
+.result-section .s-title{font-size:10px;color:var(--fg2);text-transform:uppercase;margin-bottom:4px;font-weight:600}
+.spec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
+.spec-item{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px}
+.spec-item .k{font-size:9px;color:var(--fg2);text-transform:uppercase}
+.spec-item .v{font-size:14px;font-weight:700;color:var(--accent)}
+.text-sm{font-size:12px;line-height:1.6;color:var(--fg)}
+.code-sm{font-size:11px;color:var(--codeFg);line-height:1.5;word-break:break-all;margin:0}
+.asset-badge{display:inline-block;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:9px;color:var(--fg2)}
+.mode-seg{display:flex;flex-wrap:wrap;background:var(--bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;gap:4px;padding:4px}
+.mode-seg button{flex:1 1 calc(50% - 4px);padding:10px 8px;border:none;background:transparent;color:var(--fg2);font-size:12px;font-weight:700;cursor:pointer;transition:.15s;min-width:0;border-radius:8px}
+.mode-seg button:hover{color:var(--fg)}
+.mode-seg button.active{background:var(--bgAccent);color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);border-radius:5px}
+.action-bar{display:flex;gap:12px;margin-top:16px}.action-bar .btn{flex:1}
+
+.random-box{background:rgba(88,166,255,.06);border:1px solid var(--copyBorder);border-radius:12px;padding:16px;margin-top:18px}
+.random-head{font-size:12px;font-weight:800;color:var(--accent);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.random-desc{font-size:11px;color:var(--fg2);line-height:1.65;margin-bottom:14px}
+.seed-row{display:flex;gap:10px;align-items:center}
+.seed-row input{flex:1;font-family:"SF Mono","Consolas",monospace;color:var(--codeFg)}
+.random-summary{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;margin-top:10px;font-size:10px;color:var(--fg2);line-height:1.5}
+.random-summary strong{color:var(--accent)}
+.guide-box{background:rgba(35,134,54,.08);border:1px solid rgba(63,185,80,.35);border-radius:12px;padding:16px;margin-top:18px}
+.guide-head{font-size:12px;font-weight:800;color:#7ee787;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.guide-desc{font-size:11px;color:var(--fg2);line-height:1.65;margin-bottom:14px}
+.guide-chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.guide-chip{background:var(--bg3);border:1px solid var(--border);border-radius:999px;padding:6px 10px;font-size:11px;color:var(--fg);cursor:pointer;transition:.15s}
+.guide-chip:hover{border-color:var(--accent);color:var(--accent)}
+.guide-inline-help{font-size:11px;color:var(--fgDim);line-height:1.55;margin-top:7px}
+
+
+
+.idea-panel{border-color:rgba(255,196,87,.35);background:linear-gradient(180deg,rgba(255,196,87,.08),var(--bg2) 42%)}
+.idea-panel .panel-title{color:#f2cc60}
+.idea-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.idea-grid .form-group{margin-bottom:0}
+.idea-actions{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:16px;align-items:stretch}
+.idea-actions .btn-primary{margin-top:0}
+.idea-secondary{background:rgba(255,196,87,.12);border:1px solid rgba(255,196,87,.35);color:#f2cc60}
+.idea-secondary:hover{background:rgba(255,196,87,.2)}
+.idea-card{background:linear-gradient(180deg,rgba(255,196,87,.08),rgba(88,166,255,.05));border:1px solid rgba(255,196,87,.32);border-radius:14px;padding:18px;margin-bottom:14px}
+.idea-card h2{font-size:22px;color:#f2cc60;margin-bottom:8px;line-height:1.35}
+.idea-card .idea-meta{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 14px}
+.idea-pill{display:inline-flex;align-items:center;gap:4px;background:var(--bg);border:1px solid var(--border);border-radius:999px;padding:4px 9px;font-size:10px;color:var(--fg2)}
+.idea-section{margin-top:13px}
+.idea-section-title{font-size:10px;color:var(--fg2);text-transform:uppercase;letter-spacing:.5px;font-weight:800;margin-bottom:6px}
+.idea-section-body{font-size:13px;color:var(--fg);line-height:1.7}
+.idea-list{margin:0;padding-left:18px;color:var(--fg);font-size:13px;line-height:1.75}
+.idea-prompt-box{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:12px;color:var(--codeFg);white-space:pre-wrap;line-height:1.55;font-family:"SF Mono","Fira Code","Consolas",monospace}
+
+/* Relaxed desktop spacing */
+.left .panel:last-of-type{margin-bottom:24px}
+.left textarea{min-height:92px}
+.left select{min-height:44px}
+.left input{min-height:44px}
+.project-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.project-grid .form-group{margin-bottom:0}
+@media (min-width:1200px){
+  .main{grid-template-columns:minmax(580px,640px) 1fr}
+  .left{padding-left:28px;padding-right:28px}
+}
+
+@media (max-width:900px){
+  body{height:auto;min-height:100vh}
+  .main{grid-template-columns:1fr;overflow:visible}
+  .left{border-right:none;border-bottom:1px solid var(--border);overflow:visible;padding:18px}
+  .right{overflow:visible;min-height:420px}
+  .asset-grid{grid-template-columns:1fr 1fr}
+}
+@media (max-width:520px){
+  .header{padding:10px 14px;align-items:flex-start}
+  .header-pill{display:none}
+  .project-grid{grid-template-columns:1fr}
+  .hero-metrics{grid-template-columns:1fr 1fr 1fr}
+  .handoff-actions{grid-template-columns:1fr}
+  .header h1{font-size:14px;flex-wrap:wrap}
+  .left,.right{padding:14px}
+  .tabs{overflow-x:auto}
+  .tab{white-space:nowrap}
+  .idea-grid{grid-template-columns:1fr}
+  .idea-actions{grid-template-columns:1fr}
+  .action-bar{flex-direction:column}
+}
+
+
+/* ===== Visual polish pass: portfolio-ready product UI ===== */
+:root{
+  --bg:#070a12;
+  --bg2:rgba(15,23,42,.76);
+  --bg3:#182033;
+  --bgAccent:#0d2b48;
+  --border:rgba(148,163,184,.18);
+  --fg:#e5edf8;
+  --fg2:#9aa8bd;
+  --fgDim:#64748b;
+  --accent:#7dd3fc;
+  --accent2:#a78bfa;
+  --accent3:#f8c76b;
+  --green:#34d399;
+  --greenHover:#5eead4;
+  --geminiBg:rgba(20,184,166,.12);
+  --geminiFg:#7dd3fc;
+  --geminiBorder:rgba(125,211,252,.32);
+  --copyBg:rgba(59,130,246,.12);
+  --copyBorder:rgba(96,165,250,.35);
+  --codeFg:#a7f3d0;
+  --danger:#fb7185;
+  --shadow:0 18px 60px rgba(0,0,0,.38);
+  --shadowSoft:0 10px 30px rgba(0,0,0,.25);
+}
+*{scrollbar-width:thin;scrollbar-color:rgba(125,211,252,.35) transparent}
+*::-webkit-scrollbar{width:10px;height:10px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(125,211,252,.45),rgba(167,139,250,.35));border:3px solid transparent;border-radius:999px;background-clip:padding-box}
+html{background:#070a12}
+body{
+  min-height:100vh;
+  font-synthesis-weight:none;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  background:
+    radial-gradient(circle at 16% -10%,rgba(125,211,252,.18),transparent 34%),
+    radial-gradient(circle at 92% 3%,rgba(167,139,250,.20),transparent 34%),
+    radial-gradient(circle at 66% 105%,rgba(52,211,153,.10),transparent 34%),
+    linear-gradient(135deg,#060913 0%,#0b1020 45%,#070a12 100%);
+  color:var(--fg);
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size:48px 48px;
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.72),transparent 78%);
+}
+.header,.main,.toast{position:relative;z-index:1}
+.header{
+  min-height:72px;
+  background:linear-gradient(180deg,rgba(15,23,42,.86),rgba(15,23,42,.62));
+  backdrop-filter:blur(22px) saturate(1.35);
+  -webkit-backdrop-filter:blur(22px) saturate(1.35);
+  border-bottom:1px solid rgba(148,163,184,.20);
+  box-shadow:0 1px 0 rgba(255,255,255,.05) inset,0 18px 50px rgba(0,0,0,.22);
+}
+.header h1{
+  letter-spacing:.2px;
+  color:#eaf6ff;
+  text-shadow:0 0 28px rgba(125,211,252,.22);
+}
+.header h1::before{
+  content:"";
+  width:12px;height:12px;border-radius:999px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  box-shadow:0 0 24px rgba(125,211,252,.75);
+  display:inline-block;
+}
+.header h1 span{color:#8fa4bf;font-size:12px;letter-spacing:.25px}
+.header-pill{
+  margin-left:auto;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:7px 12px;
+  border-radius:999px;
+  color:#dbeafe;
+  font-size:12px;
+  font-weight:700;
+  background:linear-gradient(135deg,rgba(125,211,252,.16),rgba(167,139,250,.16));
+  border:1px solid rgba(191,219,254,.24);
+  box-shadow:0 0 0 1px rgba(255,255,255,.03) inset;
+}
+.header-pill::before{content:"●";font-size:9px;color:#34d399;text-shadow:0 0 12px rgba(52,211,153,.75)}
+.main{
+  gap:18px;
+  padding:18px;
+  grid-template-columns:minmax(580px,660px) minmax(0,1fr);
+}
+.left,.right{
+  border:1px solid rgba(148,163,184,.16);
+  border-radius:22px;
+  background:linear-gradient(180deg,rgba(15,23,42,.58),rgba(15,23,42,.30));
+  box-shadow:var(--shadow);
+  backdrop-filter:blur(18px) saturate(1.18);
+  -webkit-backdrop-filter:blur(18px) saturate(1.18);
+}
+.left{border-right:1px solid rgba(148,163,184,.16);padding:26px}
+.right{padding:26px}
+.panel{
+  position:relative;
+  background:linear-gradient(180deg,rgba(20,28,48,.82),rgba(12,18,32,.72));
+  border:1px solid rgba(148,163,184,.16);
+  border-radius:18px;
+  box-shadow:var(--shadowSoft),0 1px 0 rgba(255,255,255,.05) inset;
+  overflow:hidden;
+}
+.panel::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:linear-gradient(135deg,rgba(255,255,255,.055),transparent 38%);
+  opacity:.72;
+}
+.panel-title,.panel-content{position:relative;z-index:1}
+.panel-title{
+  color:#d5e7ff;
+  background:linear-gradient(90deg,rgba(125,211,252,.08),transparent);
+  border-bottom:1px solid rgba(148,163,184,.14);
+  letter-spacing:.68px;
+}
+.panel-title::after{
+  content:"";
+  margin-left:auto;
+  width:42px;height:2px;border-radius:999px;
+  background:linear-gradient(90deg,var(--accent),transparent);
+  opacity:.85;
+}
+.panel-content{padding:20px}
+.form-label{color:#b4c4d9;font-weight:700;letter-spacing:.15px}
+input,select,textarea{
+  background:rgba(7,11,22,.72);
+  border:1px solid rgba(148,163,184,.17);
+  box-shadow:0 1px 0 rgba(255,255,255,.04) inset;
+}
+input:hover,select:hover,textarea:hover{border-color:rgba(125,211,252,.30)}
+input:focus,select:focus,textarea:focus{
+  border-color:rgba(125,211,252,.78);
+  box-shadow:0 0 0 3px rgba(125,211,252,.12),0 1px 0 rgba(255,255,255,.05) inset;
+}
+input::placeholder,textarea::placeholder{color:#5f7087}
+select{cursor:pointer}
+.btn{
+  box-shadow:0 1px 0 rgba(255,255,255,.08) inset,0 10px 24px rgba(0,0,0,.20);
+  transform:translateY(0);
+}
+.btn:hover{transform:translateY(-1px)}
+.btn:active{transform:translateY(0) scale(.99)}
+.btn-primary{
+  color:#052014;
+  background:linear-gradient(135deg,#6ee7b7,#7dd3fc 56%,#a78bfa);
+  box-shadow:0 12px 32px rgba(45,212,191,.22),0 1px 0 rgba(255,255,255,.22) inset;
+}
+.btn-primary:hover{background:linear-gradient(135deg,#99f6e4,#93c5fd 54%,#c4b5fd)}
+.btn-gemini{
+  background:linear-gradient(135deg,rgba(125,211,252,.14),rgba(167,139,250,.12));
+  color:#dbeafe;
+  border-color:rgba(125,211,252,.32);
+}
+.btn-gemini:hover{background:linear-gradient(135deg,rgba(125,211,252,.22),rgba(167,139,250,.20));border-color:rgba(191,219,254,.42)}
+.btn-copy,.btn-sm,.idea-secondary{
+  background:rgba(15,23,42,.72);
+  border:1px solid rgba(148,163,184,.18);
+  color:#bfdbfe;
+}
+.btn-copy:hover,.btn-sm:hover,.idea-secondary:hover{background:rgba(30,41,59,.82);border-color:rgba(125,211,252,.36);color:#e0f2fe}
+.mode-seg{
+  background:rgba(7,11,22,.70);
+  border-color:rgba(148,163,184,.16);
+  box-shadow:0 1px 0 rgba(255,255,255,.04) inset;
+}
+.mode-seg button{color:#8fa4bf}
+.mode-seg button:hover{background:rgba(125,211,252,.08);color:#dbeafe}
+.mode-seg button.active{
+  color:#06121e;
+  background:linear-gradient(135deg,#7dd3fc,#a78bfa);
+  box-shadow:0 10px 28px rgba(125,211,252,.18),0 1px 0 rgba(255,255,255,.28) inset;
+}
+.asset-card{
+  position:relative;
+  background:linear-gradient(180deg,rgba(15,23,42,.86),rgba(7,11,22,.72));
+  border-color:rgba(148,163,184,.15);
+  box-shadow:0 1px 0 rgba(255,255,255,.04) inset;
+}
+.asset-card::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(circle at 50% 0%,rgba(125,211,252,.14),transparent 56%);
+  opacity:0;transition:.18s ease;
+}
+.asset-card:hover{transform:translateY(-2px);border-color:rgba(125,211,252,.42);box-shadow:0 14px 36px rgba(0,0,0,.28)}
+.asset-card:hover::after,.asset-card.selected::after{opacity:1}
+.asset-card.selected{
+  background:linear-gradient(180deg,rgba(14,44,71,.90),rgba(20,25,53,.82));
+  border-color:rgba(125,211,252,.72);
+  box-shadow:0 0 0 1px rgba(125,211,252,.18) inset,0 16px 38px rgba(14,165,233,.13);
+}
+.asset-card .icon{filter:drop-shadow(0 8px 14px rgba(125,211,252,.18))}
+.random-box,.guide-box{
+  position:relative;
+  overflow:hidden;
+  box-shadow:0 1px 0 rgba(255,255,255,.05) inset;
+}
+.random-box{background:linear-gradient(135deg,rgba(14,165,233,.10),rgba(99,102,241,.08));border-color:rgba(125,211,252,.25)}
+.guide-box{background:linear-gradient(135deg,rgba(52,211,153,.10),rgba(125,211,252,.06));border-color:rgba(52,211,153,.25)}
+.random-box::before,.guide-box::before{
+  content:"";position:absolute;inset:auto -35% -70% auto;width:180px;height:180px;border-radius:999px;
+  background:radial-gradient(circle,rgba(255,255,255,.12),transparent 62%);
+  pointer-events:none;
+}
+.guide-chip{background:rgba(15,23,42,.72);border-color:rgba(148,163,184,.17);color:#cad8ea}
+.guide-chip:hover{background:rgba(125,211,252,.10);box-shadow:0 0 0 3px rgba(125,211,252,.06)}
+.idea-panel{
+  border-color:rgba(248,199,107,.34);
+  background:linear-gradient(180deg,rgba(251,191,36,.11),rgba(20,28,48,.78) 42%,rgba(12,18,32,.78));
+}
+.idea-panel::before{background:radial-gradient(circle at 8% 0%,rgba(251,191,36,.22),transparent 38%),linear-gradient(135deg,rgba(255,255,255,.055),transparent 45%)}
+.idea-panel .panel-title{color:#ffe6a6;background:linear-gradient(90deg,rgba(251,191,36,.12),transparent)}
+.idea-secondary{color:#ffe6a6;border-color:rgba(251,191,36,.30);background:rgba(251,191,36,.10)}
+.idea-secondary:hover{background:rgba(251,191,36,.16);border-color:rgba(251,191,36,.44);color:#fff4cc}
+.idea-card{
+  position:relative;
+  overflow:hidden;
+  background:linear-gradient(145deg,rgba(251,191,36,.12),rgba(59,130,246,.08) 48%,rgba(167,139,250,.08));
+  border-color:rgba(251,191,36,.26);
+  box-shadow:var(--shadowSoft),0 1px 0 rgba(255,255,255,.05) inset;
+}
+.idea-card::before{content:"";position:absolute;right:-60px;top:-70px;width:220px;height:220px;border-radius:999px;background:radial-gradient(circle,rgba(251,191,36,.22),transparent 65%);pointer-events:none}
+.idea-card>*{position:relative;z-index:1}
+.idea-card h2{color:#ffe09a;text-shadow:0 0 28px rgba(251,191,36,.16)}
+.idea-pill{background:rgba(7,11,22,.58);border-color:rgba(148,163,184,.18);color:#bcd0e7}
+.idea-prompt-box,.prompt-block,.spec-item,.result-card{
+  background:rgba(7,11,22,.72);
+  border-color:rgba(148,163,184,.16);
+  box-shadow:0 1px 0 rgba(255,255,255,.04) inset;
+}
+.output-panel.visible{
+  min-height:100%;
+  border:1px solid rgba(148,163,184,.16);
+  border-radius:22px;
+  overflow:hidden;
+  background:linear-gradient(180deg,rgba(15,23,42,.74),rgba(8,13,24,.58));
+  box-shadow:var(--shadowSoft),0 1px 0 rgba(255,255,255,.05) inset;
+}
+.tabs{
+  padding:10px;
+  gap:8px;
+  border-bottom:1px solid rgba(148,163,184,.13);
+  background:rgba(7,11,22,.28);
+}
+.tab{
+  padding:10px 14px;
+  border-radius:999px;
+  border-bottom:none;
+  font-size:12px;
+  font-weight:800;
+}
+.tab:hover{background:rgba(125,211,252,.07);color:#dbeafe}
+.tab.active{background:linear-gradient(135deg,rgba(125,211,252,.18),rgba(167,139,250,.14));color:#dbeafe;border:1px solid rgba(125,211,252,.24)}
+.prompt-block{border-radius:14px;padding:16px;margin-bottom:14px}
+.prompt-block .label{font-size:11px;color:#93c5fd;font-weight:800}
+.prompt-block pre{font-size:12px;line-height:1.72}
+.prompt-combined{background:linear-gradient(180deg,rgba(14,44,71,.42),rgba(7,11,22,.72));border-color:rgba(125,211,252,.25)}
+.result-card{border-radius:16px;padding:18px}
+.result-card h3{font-size:22px;color:#dbeafe}
+.result-section{margin-top:16px}
+.result-section .s-title{color:#93c5fd;font-weight:800;letter-spacing:.55px;margin-bottom:8px}
+.spec-grid{gap:10px}
+.spec-item{border-radius:12px;padding:12px}
+.asset-badge{border-radius:999px;padding:4px 8px;font-size:10px;background:rgba(30,41,59,.72);color:#bcd0e7;border-color:rgba(148,163,184,.18)}
+.step{gap:12px;margin-bottom:16px}
+.step-num{background:linear-gradient(135deg,#34d399,#7dd3fc);color:#06121e;box-shadow:0 8px 18px rgba(45,212,191,.18)}
+.step-text{font-size:12px;line-height:1.72;color:#9fb0c7}
+.empty-state{
+  min-height:520px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:60px 42px;
+  text-align:center;
+  color:var(--fg2);
+  background:
+    radial-gradient(circle at 50% 26%,rgba(125,211,252,.16),transparent 28%),
+    radial-gradient(circle at 42% 58%,rgba(167,139,250,.13),transparent 36%);
+}
+.empty-orb{
+  width:92px;height:92px;border-radius:28px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:42px;color:#e0f2fe;
+  background:linear-gradient(135deg,rgba(125,211,252,.25),rgba(167,139,250,.22));
+  border:1px solid rgba(191,219,254,.20);
+  box-shadow:0 22px 60px rgba(14,165,233,.18),0 1px 0 rgba(255,255,255,.10) inset;
+  margin-bottom:24px;
+}
+.empty-state h2{font-size:28px;line-height:1.25;color:#eff6ff;max-width:720px;margin-bottom:14px;letter-spacing:-.35px}
+.empty-state p{font-size:14px;line-height:1.8;max-width:760px;color:#a7b7ce;margin-bottom:26px}
+.empty-steps{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.empty-steps span{padding:8px 12px;border-radius:999px;background:rgba(15,23,42,.62);border:1px solid rgba(148,163,184,.18);font-size:11px;font-weight:800;color:#bfdbfe;letter-spacing:.5px;text-transform:uppercase}
+.toast{border-radius:999px;background:linear-gradient(135deg,#34d399,#7dd3fc);color:#06121e;font-weight:800;box-shadow:0 18px 46px rgba(45,212,191,.22)}
+.project-grid .wide{grid-column:1/-1}
+@media (min-width:1500px){.main{grid-template-columns:minmax(620px,700px) minmax(0,1fr)}}
+@media (max-width:900px){
+  .main{padding:12px;gap:12px}
+  .left,.right{border-radius:18px;padding:18px}
+  .output-panel.visible{border-radius:18px}
+  .empty-state{min-height:380px;padding:44px 22px}
+  .empty-state h2{font-size:22px}
+}
+@media (max-width:520px){
+  .header{min-height:auto;padding:14px}
+  .header h1 span{display:none}
+  .main{padding:10px}
+  .panel{border-radius:16px}
+  .panel-content{padding:16px}
+  .tabs{overflow-x:auto;flex-wrap:nowrap}
+  .tab{white-space:nowrap;flex:0 0 auto}
+  .empty-steps span{font-size:10px}
+}
+
+/* ===== Visual System 2.0: volume, lighting, dual themes ===== */
+body[data-theme="aurora"]{
+  --bg:#050b18;
+  --bg2:rgba(10,18,35,.78);
+  --bg3:rgba(18,29,54,.88);
+  --bgAccent:rgba(20,50,94,.62);
+  --border:rgba(148,163,184,.18);
+  --fg:#edf6ff;
+  --fg2:#9fb4cf;
+  --fgDim:#64748b;
+  --accent:#7dd3fc;
+  --accent2:#a78bfa;
+  --accent3:#34d399;
+  --warm:#f8c76b;
+  --green:#27d7a1;
+  --greenHover:#3ee7b7;
+  --copyBg:rgba(37,99,235,.20);
+  --copyBorder:rgba(125,211,252,.36);
+  --geminiBg:rgba(18,148,112,.16);
+  --geminiFg:#8bf4cd;
+  --geminiBorder:rgba(52,211,153,.32);
+  --codeFg:#9af5d7;
+  --surfaceA:rgba(13,22,43,.78);
+  --surfaceB:rgba(8,14,28,.70);
+  --surfaceC:rgba(16,27,52,.62);
+  --glowA:rgba(56,189,248,.28);
+  --glowB:rgba(167,139,250,.24);
+  --glowC:rgba(52,211,153,.16);
+  --heroGradient:linear-gradient(135deg,#7dd3fc 0%,#a78bfa 52%,#34d399 100%);
+  --panelGradient:linear-gradient(154deg,rgba(17,30,57,.84),rgba(8,14,28,.78) 50%,rgba(7,11,22,.86));
+  --buttonGradient:linear-gradient(135deg,#34d399 0%,#7dd3fc 48%,#a78bfa 100%);
+  --goldGradient:linear-gradient(135deg,#f8c76b,#fb7185);
+  --shadowDeep:0 30px 90px rgba(0,0,0,.48);
+  --shadowCard:0 18px 54px rgba(0,0,0,.32),0 1px 0 rgba(255,255,255,.08) inset;
+  --shadowLift:0 26px 70px rgba(13,148,136,.20),0 1px 0 rgba(255,255,255,.12) inset;
+}
+body[data-theme="ember"]{
+  --bg:#120a0b;
+  --bg2:rgba(34,18,16,.82);
+  --bg3:rgba(54,30,23,.92);
+  --bgAccent:rgba(92,48,22,.58);
+  --border:rgba(248,199,107,.20);
+  --fg:#fff7ed;
+  --fg2:#d5bda5;
+  --fgDim:#8f6f61;
+  --accent:#fbbf24;
+  --accent2:#fb7185;
+  --accent3:#f97316;
+  --warm:#fde68a;
+  --green:#f59e0b;
+  --greenHover:#fbbf24;
+  --copyBg:rgba(180,83,9,.25);
+  --copyBorder:rgba(251,191,36,.38);
+  --geminiBg:rgba(251,146,60,.14);
+  --geminiFg:#fed7aa;
+  --geminiBorder:rgba(251,146,60,.34);
+  --codeFg:#fde68a;
+  --surfaceA:rgba(40,20,18,.80);
+  --surfaceB:rgba(24,12,14,.76);
+  --surfaceC:rgba(58,29,22,.62);
+  --glowA:rgba(251,191,36,.26);
+  --glowB:rgba(251,113,133,.20);
+  --glowC:rgba(249,115,22,.16);
+  --heroGradient:linear-gradient(135deg,#fbbf24 0%,#fb7185 54%,#f97316 100%);
+  --panelGradient:linear-gradient(154deg,rgba(55,28,23,.88),rgba(29,14,15,.80) 52%,rgba(20,10,12,.88));
+  --buttonGradient:linear-gradient(135deg,#f97316 0%,#fbbf24 52%,#fb7185 100%);
+  --goldGradient:linear-gradient(135deg,#fde68a,#fb7185);
+  --shadowDeep:0 30px 90px rgba(0,0,0,.52);
+  --shadowCard:0 18px 54px rgba(0,0,0,.34),0 1px 0 rgba(255,238,196,.08) inset;
+  --shadowLift:0 26px 70px rgba(251,146,60,.18),0 1px 0 rgba(255,238,196,.12) inset;
+}
+html{background:var(--bg)}
+body{
+  position:relative;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 16% -12%,var(--glowA),transparent 34%),
+    radial-gradient(circle at 92% 8%,var(--glowB),transparent 32%),
+    radial-gradient(circle at 48% 106%,var(--glowC),transparent 36%),
+    linear-gradient(135deg,var(--bg),#060912 58%,var(--bg));
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:0;
+  background:
+    linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);
+  background-size:42px 42px;
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.75),transparent 76%);
+}
+body::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:0;
+  background:radial-gradient(circle at 50% 20%,rgba(255,255,255,.065),transparent 22%);
+  mix-blend-mode:screen;
+}
+.header,.main,.toast{position:relative;z-index:1}
+.header{
+  min-height:82px;
+  padding:18px 32px;
+  justify-content:space-between;
+  background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.025));
+  border-bottom:1px solid var(--border);
+  box-shadow:0 18px 48px rgba(0,0,0,.24),0 1px 0 rgba(255,255,255,.07) inset;
+  backdrop-filter:blur(22px) saturate(145%);
+}
+.brand-lockup{display:flex;align-items:center;gap:15px;min-width:0}
+.brand-mark{
+  width:48px;height:48px;border-radius:17px;
+  display:flex;align-items:center;justify-content:center;
+  flex:0 0 auto;
+  font-size:24px;font-weight:900;color:#06121e;
+  background:var(--heroGradient);
+  box-shadow:0 18px 46px var(--glowA),0 1px 0 rgba(255,255,255,.42) inset;
+}
+.brand-kicker{
+  color:var(--accent);
+  font-size:10px;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:1.8px;
+  margin-bottom:7px;
+  text-transform:uppercase;
+}
+.header h1{
+  color:var(--fg);
+  font-size:19px;
+  letter-spacing:-.25px;
+  text-shadow:0 0 34px var(--glowA);
+}
+.header h1 span{
+  display:block;
+  margin-top:4px;
+  color:var(--fg2);
+  font-size:12px;
+  letter-spacing:0;
+}
+.header-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+.header-pill{
+  padding:9px 13px;
+  border-radius:999px;
+  color:var(--fg);
+  background:linear-gradient(135deg,rgba(255,255,255,.10),rgba(255,255,255,.035));
+  border:1px solid var(--border);
+  box-shadow:0 1px 0 rgba(255,255,255,.08) inset;
+  font-weight:800;
+  font-size:11px;
+}
+.theme-switch{
+  display:flex;
+  gap:5px;
+  padding:5px;
+  border-radius:999px;
+  background:rgba(0,0,0,.22);
+  border:1px solid var(--border);
+  box-shadow:0 1px 0 rgba(255,255,255,.08) inset;
+}
+.theme-btn{
+  border:none;
+  border-radius:999px;
+  color:var(--fg2);
+  background:transparent;
+  padding:8px 12px;
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+  transition:.2s ease;
+}
+.theme-btn:hover{color:var(--fg);background:rgba(255,255,255,.06)}
+.theme-btn.active{
+  color:#06121e;
+  background:var(--buttonGradient);
+  box-shadow:0 10px 24px var(--glowA),0 1px 0 rgba(255,255,255,.34) inset;
+}
+.main{
+  grid-template-columns:minmax(620px,720px) minmax(0,1fr);
+  gap:24px;
+  padding:24px;
+  background:transparent;
+}
+.left,.right{
+  border:1px solid var(--border);
+  border-radius:28px;
+  background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025));
+  box-shadow:var(--shadowDeep),0 1px 0 rgba(255,255,255,.06) inset;
+  backdrop-filter:blur(22px) saturate(135%);
+}
+.left{padding:30px;border-right:1px solid var(--border)}
+.right{padding:30px}
+.left::-webkit-scrollbar,.right::-webkit-scrollbar{width:10px}
+.left::-webkit-scrollbar-thumb,.right::-webkit-scrollbar-thumb{border-radius:999px;background:linear-gradient(var(--accent),var(--accent2));border:3px solid transparent;background-clip:content-box}
+.panel{
+  position:relative;
+  border-radius:22px;
+  margin-bottom:26px;
+  background:var(--panelGradient);
+  border:1px solid var(--border);
+  box-shadow:var(--shadowCard);
+  overflow:hidden;
+}
+.panel::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 0% 0%,rgba(255,255,255,.11),transparent 28%),
+    linear-gradient(135deg,rgba(255,255,255,.07),transparent 45%);
+}
+.panel::after{
+  content:"";
+  position:absolute;
+  left:18px;right:18px;top:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.32),transparent);
+  pointer-events:none;
+}
+.panel-title{
+  position:relative;
+  z-index:1;
+  padding:18px 22px;
+  font-size:12px;
+  color:var(--fg);
+  background:linear-gradient(90deg,rgba(255,255,255,.06),transparent);
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.panel-title::before{
+  content:"";
+  width:8px;height:8px;border-radius:999px;
+  background:var(--buttonGradient);
+  box-shadow:0 0 20px var(--glowA);
+}
+.panel-content{position:relative;z-index:1;padding:22px}
+.form-group{margin-bottom:18px}
+.form-label{font-size:12px;font-weight:800;color:var(--fg2);margin-bottom:8px}
+input,select,textarea{
+  min-height:48px;
+  border-radius:14px;
+  padding:13px 14px;
+  background:linear-gradient(180deg,rgba(0,0,0,.24),rgba(0,0,0,.14));
+  border:1px solid rgba(255,255,255,.11);
+  box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 10px 24px rgba(0,0,0,.16);
+  color:var(--fg);
+  font-size:13px;
+}
+textarea{min-height:104px;resize:vertical}
+input:focus,select:focus,textarea:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 15%,transparent),0 1px 0 rgba(255,255,255,.08) inset;
+}
+select{
+  appearance:none;
+  background-image:
+    linear-gradient(45deg,transparent 50%,var(--accent) 50%),
+    linear-gradient(135deg,var(--accent) 50%,transparent 50%),
+    linear-gradient(180deg,rgba(0,0,0,.24),rgba(0,0,0,.14));
+  background-position:calc(100% - 18px) 52%,calc(100% - 12px) 52%,0 0;
+  background-size:6px 6px,6px 6px,100% 100%;
+  background-repeat:no-repeat;
+  padding-right:36px;
+}
+.btn{
+  border-radius:14px;
+  box-shadow:0 12px 28px rgba(0,0,0,.20),0 1px 0 rgba(255,255,255,.10) inset;
+  transform:translateY(0);
+}
+.btn:hover{transform:translateY(-1px);filter:saturate(1.12)}
+.btn-primary{
+  min-height:54px;
+  border-radius:18px;
+  background:var(--buttonGradient);
+  color:#06121e;
+  box-shadow:0 20px 48px var(--glowA),0 1px 0 rgba(255,255,255,.35) inset;
+  text-shadow:none;
+}
+.btn-primary:hover{background:var(--buttonGradient);box-shadow:0 26px 68px var(--glowA),0 1px 0 rgba(255,255,255,.42) inset}
+.btn-copy,.btn-sm,.btn-gemini{
+  background:linear-gradient(135deg,rgba(255,255,255,.09),rgba(255,255,255,.035));
+  border:1px solid var(--border);
+  color:var(--fg);
+}
+.btn-gemini{color:var(--geminiFg);border-color:var(--geminiBorder)}
+.asset-grid{gap:14px}
+.asset-card{
+  min-height:112px;
+  border-radius:18px;
+  padding:18px 14px;
+  background:linear-gradient(160deg,var(--surfaceA),var(--surfaceB));
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 12px 34px rgba(0,0,0,.18),0 1px 0 rgba(255,255,255,.07) inset;
+}
+.asset-card:hover{
+  transform:translateY(-4px);
+  border-color:color-mix(in srgb,var(--accent) 55%,white 0%);
+  box-shadow:0 22px 52px rgba(0,0,0,.28),0 0 0 4px color-mix(in srgb,var(--accent) 10%,transparent),0 1px 0 rgba(255,255,255,.10) inset;
+}
+.asset-card.selected{
+  background:
+    radial-gradient(circle at 50% 0%,color-mix(in srgb,var(--accent) 25%,transparent),transparent 56%),
+    linear-gradient(160deg,var(--surfaceA),var(--surfaceB));
+  border-color:var(--accent);
+  box-shadow:0 24px 58px var(--glowA),0 1px 0 rgba(255,255,255,.12) inset;
+}
+.asset-card .icon{
+  font-size:31px;
+  filter:drop-shadow(0 12px 20px var(--glowA));
+}
+.asset-card .name{font-size:14px;color:var(--fg)}
+.asset-card .desc{font-size:10.5px;color:var(--fg2)}
+.mode-seg{
+  gap:8px;
+  padding:7px;
+  border-radius:16px;
+  background:rgba(0,0,0,.20);
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 1px 0 rgba(255,255,255,.06) inset;
+}
+.mode-seg button{
+  min-height:46px;
+  border-radius:13px;
+  font-size:12px;
+  color:var(--fg2);
+}
+.mode-seg button.active{
+  color:#06121e;
+  background:var(--buttonGradient);
+  box-shadow:0 16px 36px var(--glowA),0 1px 0 rgba(255,255,255,.30) inset;
+}
+.random-box,.guide-box{
+  border-radius:18px;
+  padding:18px;
+  background:linear-gradient(154deg,var(--surfaceC),rgba(0,0,0,.18));
+  box-shadow:0 16px 40px rgba(0,0,0,.20),0 1px 0 rgba(255,255,255,.08) inset;
+}
+.idea-panel{
+  background:
+    radial-gradient(circle at 16% 0%,color-mix(in srgb,var(--warm) 24%,transparent),transparent 42%),
+    var(--panelGradient);
+  border-color:color-mix(in srgb,var(--warm) 40%,var(--border));
+}
+.idea-panel .panel-title{color:var(--warm)}
+.idea-card{
+  border-radius:24px;
+  background:
+    radial-gradient(circle at 18% 0%,color-mix(in srgb,var(--warm) 24%,transparent),transparent 38%),
+    linear-gradient(145deg,var(--surfaceA),var(--surfaceB));
+  border-color:color-mix(in srgb,var(--warm) 32%,var(--border));
+  box-shadow:var(--shadowDeep),0 1px 0 rgba(255,255,255,.10) inset;
+}
+.idea-card h2{font-size:28px;color:var(--warm)}
+.output-panel.visible{
+  border-radius:28px;
+  background:
+    radial-gradient(circle at 100% 0%,var(--glowB),transparent 35%),
+    linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025));
+  border:1px solid var(--border);
+  box-shadow:var(--shadowDeep),0 1px 0 rgba(255,255,255,.08) inset;
+}
+.tabs{
+  padding:14px;
+  gap:10px;
+  background:rgba(0,0,0,.16);
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.tab{
+  min-height:42px;
+  padding:12px 16px;
+  border-radius:14px;
+  color:var(--fg2);
+}
+.tab.active{
+  color:#06121e;
+  border:none;
+  background:var(--buttonGradient);
+  box-shadow:0 16px 34px var(--glowA),0 1px 0 rgba(255,255,255,.32) inset;
+}
+.prompt-block,.result-card,.spec-item,.idea-prompt-box{
+  border-radius:18px;
+  background:linear-gradient(160deg,rgba(0,0,0,.28),rgba(255,255,255,.035));
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 14px 34px rgba(0,0,0,.22),0 1px 0 rgba(255,255,255,.06) inset;
+}
+.prompt-combined{
+  background:
+    radial-gradient(circle at 0% 0%,color-mix(in srgb,var(--accent) 17%,transparent),transparent 36%),
+    linear-gradient(160deg,rgba(0,0,0,.28),rgba(255,255,255,.035));
+}
+.empty-state{
+  min-height:620px;
+  border-radius:28px;
+  background:
+    radial-gradient(circle at 50% 18%,var(--glowA),transparent 28%),
+    radial-gradient(circle at 44% 58%,var(--glowB),transparent 34%),
+    linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.08));
+}
+.empty-orb{
+  width:116px;height:116px;
+  border-radius:34px;
+  background:var(--heroGradient);
+  color:#06121e;
+  box-shadow:0 30px 90px var(--glowA),0 1px 0 rgba(255,255,255,.42) inset;
+}
+.empty-state h2{font-size:34px;max-width:780px;color:var(--fg)}
+.empty-state p{font-size:15px;color:var(--fg2)}
+.empty-steps span{
+  padding:10px 14px;
+  border-radius:14px;
+  background:linear-gradient(135deg,rgba(255,255,255,.08),rgba(255,255,255,.03));
+  border:1px solid var(--border);
+  color:var(--fg);
+}
+.toast{
+  background:var(--buttonGradient);
+  color:#06121e;
+  box-shadow:0 24px 70px var(--glowA),0 1px 0 rgba(255,255,255,.34) inset;
+}
+@media (min-width:1600px){
+  .main{grid-template-columns:minmax(680px,760px) minmax(0,1fr);gap:28px;padding:28px}
+}
+@media (max-width:1100px){
+  .main{grid-template-columns:1fr;overflow:auto}
+  body{height:auto;min-height:100vh;overflow:auto}
+  .left,.right{overflow:visible}
+}
+@media (max-width:760px){
+  .header{align-items:flex-start;gap:14px;padding:16px;flex-direction:column}
+  .header-actions{width:100%;justify-content:space-between}
+  .theme-switch{margin-left:auto}
+  .main{padding:12px;gap:14px}
+  .left,.right{padding:16px;border-radius:22px}
+  .panel{border-radius:20px}
+  .asset-grid{grid-template-columns:1fr 1fr}
+  .empty-state{min-height:420px;padding:40px 20px}
+  .empty-state h2{font-size:24px}
+}
+@media (max-width:520px){
+  .brand-mark{width:42px;height:42px;border-radius:15px}
+  .header h1{font-size:16px}
+  .header h1 span{display:block;font-size:11px}
+  .header-actions{gap:8px}
+  .header-pill{display:none}
+  .theme-switch{width:100%}
+  .theme-btn{flex:1}
+  .asset-grid{grid-template-columns:1fr}
+}
+
+/* ===== Prompt Alchemy Micro-interaction ===== */
+.magic-cauldron-scene{
+  position:fixed;
+  right:28px;
+  bottom:24px;
+  width:360px;
+  height:300px;
+  z-index:0;
+  pointer-events:none;
+  opacity:.92;
+  filter:saturate(1.08);
+}
+.magic-cauldron-scene::before{
+  content:"";
+  position:absolute;
+  inset:44px 8px 0 18px;
+  border-radius:40px;
+  background:
+    radial-gradient(circle at 50% 72%,var(--glowA),transparent 42%),
+    radial-gradient(circle at 60% 78%,var(--glowB),transparent 52%);
+  opacity:.55;
+  filter:blur(20px);
+}
+.cauldron-label{
+  position:absolute;
+  right:38px;
+  top:22px;
+  padding:7px 11px;
+  border-radius:999px;
+  font-size:10px;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:1.3px;
+  text-transform:uppercase;
+  color:var(--fg);
+  background:linear-gradient(135deg,rgba(255,255,255,.11),rgba(255,255,255,.035));
+  border:1px solid var(--border);
+  box-shadow:0 10px 28px rgba(0,0,0,.20),0 1px 0 rgba(255,255,255,.10) inset;
+  backdrop-filter:blur(12px);
+}
+.cauldron-wrap{
+  position:absolute;
+  right:14px;
+  bottom:6px;
+  width:260px;
+  height:230px;
+  transform-origin:50% 82%;
+}
+.cauldron-wrap.brewing{
+  animation:cauldronShake .78s cubic-bezier(.2,.8,.2,1);
+}
+.cauldron-wrap.brewing .wand{
+  opacity:1;
+  animation:stirWand .92s cubic-bezier(.15,.86,.18,1);
+}
+.cauldron-wrap.brewing .potion-swirl{
+  animation:potionSpin .72s linear infinite;
+}
+.cauldron-wrap.brewing .spell-burst{
+  animation:spellPop 1.08s ease-out forwards;
+}
+.wand{
+  position:absolute;
+  width:128px;
+  height:9px;
+  right:70px;
+  top:58px;
+  transform:rotate(-28deg);
+  transform-origin:82% 50%;
+  border-radius:999px;
+  background:linear-gradient(90deg,#4b2e1f,#916044 42%,#f8c76b 45%,#fff1b8 49%,#5b3927 52%,#2b1b16);
+  box-shadow:0 12px 26px rgba(0,0,0,.24);
+  opacity:.78;
+  z-index:4;
+}
+.wand::before{
+  content:"";
+  position:absolute;
+  left:-8px;
+  top:-5px;
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  background:radial-gradient(circle,#fff7c2 0 18%,var(--accent) 20% 46%,transparent 50%);
+  box-shadow:0 0 18px var(--accent),0 0 34px var(--glowA);
+}
+.steam{
+  position:absolute;
+  bottom:114px;
+  width:40px;
+  height:94px;
+  border-radius:50%;
+  border-left:2px solid color-mix(in srgb,var(--accent) 55%,transparent);
+  opacity:.38;
+  filter:blur(.2px);
+  animation:steamRise 4.4s ease-in-out infinite;
+  z-index:2;
+}
+.steam-a{left:82px;animation-delay:-.8s}
+.steam-b{left:124px;height:116px;animation-delay:-2.2s;opacity:.46}
+.steam-c{left:166px;animation-delay:-1.4s}
+.brew-glow{
+  position:absolute;
+  left:48px;
+  top:78px;
+  width:172px;
+  height:92px;
+  border-radius:50%;
+  background:radial-gradient(circle,var(--accent) 0%,var(--glowA) 30%,transparent 68%);
+  filter:blur(17px);
+  opacity:.62;
+  animation:brewPulse 2.6s ease-in-out infinite;
+  z-index:0;
+}
+.cauldron{
+  position:absolute;
+  left:36px;
+  bottom:26px;
+  width:194px;
+  height:136px;
+  z-index:3;
+}
+.cauldron-rim{
+  position:absolute;
+  left:0;
+  top:0;
+  width:194px;
+  height:44px;
+  border-radius:50%;
+  background:
+    radial-gradient(ellipse at 50% 38%,rgba(255,255,255,.20),transparent 38%),
+    linear-gradient(180deg,#2b354c,#0b1220 72%);
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 14px 28px rgba(0,0,0,.38),0 1px 0 rgba(255,255,255,.18) inset;
+}
+.potion-surface{
+  position:absolute;
+  left:18px;
+  top:9px;
+  width:158px;
+  height:30px;
+  border-radius:50%;
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 24% 45%,#fff 0 2px,transparent 3px),
+    radial-gradient(circle at 70% 38%,rgba(255,255,255,.82) 0 1px,transparent 3px),
+    radial-gradient(ellipse at 50% 50%,var(--accent),var(--accent2) 62%,var(--accent3));
+  box-shadow:0 0 24px var(--glowA),0 0 46px var(--glowB),0 1px 0 rgba(255,255,255,.35) inset;
+  z-index:2;
+}
+.potion-swirl{
+  position:absolute;
+  inset:-42px -28px;
+  border-radius:45%;
+  background:
+    conic-gradient(from 0deg,
+      color-mix(in srgb,var(--accent) 78%,white),
+      color-mix(in srgb,var(--accent2) 70%,white),
+      color-mix(in srgb,var(--accent3) 72%,white),
+      color-mix(in srgb,var(--warm) 72%,white),
+      color-mix(in srgb,var(--accent) 78%,white));
+  opacity:.68;
+  animation:potionSpin 7s linear infinite;
+}
+.bubble{
+  position:absolute;
+  border-radius:50%;
+  background:rgba(255,255,255,.72);
+  box-shadow:0 0 13px rgba(255,255,255,.45);
+  animation:bubblePop 2.2s ease-in-out infinite;
+  z-index:3;
+}
+.b1{width:7px;height:7px;left:22%;top:38%;animation-delay:-.1s}
+.b2{width:5px;height:5px;left:48%;top:24%;animation-delay:-1.1s}
+.b3{width:9px;height:9px;left:66%;top:48%;animation-delay:-.6s}
+.b4{width:4px;height:4px;left:81%;top:35%;animation-delay:-1.7s}
+.cauldron-body{
+  position:absolute;
+  left:20px;
+  top:24px;
+  width:154px;
+  height:104px;
+  border-radius:18px 18px 72px 72px;
+  background:
+    radial-gradient(circle at 30% 22%,rgba(255,255,255,.12),transparent 20%),
+    linear-gradient(160deg,#1e293b,#070b13 56%,#020617);
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 24px 38px rgba(0,0,0,.42),0 1px 0 rgba(255,255,255,.10) inset;
+}
+.cauldron-body::before,.cauldron-body::after{
+  content:"";
+  position:absolute;
+  top:27px;
+  width:30px;
+  height:30px;
+  border-radius:50%;
+  border:7px solid #0b1220;
+  box-shadow:0 1px 0 rgba(255,255,255,.08) inset;
+}
+.cauldron-body::before{left:-29px}
+.cauldron-body::after{right:-29px}
+.cauldron-foot{
+  position:absolute;
+  bottom:-2px;
+  width:35px;
+  height:18px;
+  border-radius:50% 50% 8px 8px;
+  background:#040711;
+  z-index:-1;
+}
+.foot-l{left:42px;transform:rotate(5deg)}
+.foot-r{right:42px;transform:rotate(-5deg)}
+.ingredient-trail{
+  position:absolute;
+  inset:0;
+  z-index:5;
+}
+.ingredient-drop{
+  position:absolute;
+  right:82px;
+  top:18px;
+  width:14px;
+  height:14px;
+  border-radius:50% 50% 50% 0;
+  transform:rotate(-45deg);
+  background:var(--dropColor,var(--accent));
+  box-shadow:0 0 18px var(--dropColor,var(--accent)),0 0 34px color-mix(in srgb,var(--dropColor,var(--accent)) 60%,transparent);
+  animation:ingredientFall .92s cubic-bezier(.2,.75,.22,1) forwards;
+}
+.ingredient-drop::after{
+  content:"";
+  position:absolute;
+  inset:3px;
+  border-radius:50%;
+  background:rgba(255,255,255,.42);
+}
+.magic-sparkle-field span{
+  position:absolute;
+  width:5px;
+  height:5px;
+  border-radius:50%;
+  background:var(--accent);
+  box-shadow:0 0 18px var(--accent);
+  opacity:.58;
+  animation:sparkDrift 5.2s ease-in-out infinite;
+}
+.magic-sparkle-field span:nth-child(1){right:44px;top:54px;animation-delay:-.5s}
+.magic-sparkle-field span:nth-child(2){right:276px;top:104px;animation-delay:-2.4s;background:var(--accent2)}
+.magic-sparkle-field span:nth-child(3){right:178px;top:26px;animation-delay:-1.2s;background:var(--warm)}
+.magic-sparkle-field span:nth-child(4){right:230px;top:176px;animation-delay:-3.6s;background:var(--accent3)}
+.magic-sparkle-field span:nth-child(5){right:118px;top:212px;animation-delay:-2.8s}
+.spell-burst{
+  position:absolute;
+  left:77px;
+  top:24px;
+  padding:8px 12px;
+  border-radius:999px;
+  color:#06121e;
+  font-weight:1000;
+  font-size:13px;
+  letter-spacing:.4px;
+  background:var(--buttonGradient);
+  box-shadow:0 0 28px var(--glowA),0 18px 44px rgba(0,0,0,.26);
+  opacity:0;
+  transform:translateY(18px) scale(.76);
+  z-index:8;
+}
+body.prompt-brewing .panel,
+body.prompt-brewing .output-panel.visible{
+  animation:interfaceGlow 1.15s ease-out;
+}
+@keyframes ingredientFall{
+  0%{opacity:0;transform:translate(-140px,-22px) rotate(-45deg) scale(.65)}
+  18%{opacity:1}
+  82%{opacity:1;transform:translate(-34px,112px) rotate(-18deg) scale(1.12)}
+  100%{opacity:0;transform:translate(-22px,142px) rotate(12deg) scale(.28)}
+}
+@keyframes cauldronShake{
+  0%,100%{transform:rotate(0) scale(1)}
+  15%{transform:rotate(-1.8deg) scale(1.018)}
+  30%{transform:rotate(2deg) scale(1.02)}
+  48%{transform:rotate(-1.4deg) scale(1.01)}
+  66%{transform:rotate(1.2deg) scale(1.018)}
+  82%{transform:rotate(-.6deg) scale(1)}
+}
+@keyframes stirWand{
+  0%{transform:translate(0,0) rotate(-28deg)}
+  20%{transform:translate(-12px,8px) rotate(-6deg)}
+  42%{transform:translate(-6px,22px) rotate(28deg)}
+  68%{transform:translate(8px,11px) rotate(-18deg)}
+  100%{transform:translate(0,0) rotate(-28deg)}
+}
+@keyframes spellPop{
+  0%{opacity:0;transform:translateY(20px) scale(.72)}
+  22%{opacity:1;transform:translateY(-8px) scale(1.08)}
+  58%{opacity:1;transform:translateY(-18px) scale(1)}
+  100%{opacity:0;transform:translateY(-42px) scale(.72)}
+}
+@keyframes potionSpin{to{transform:rotate(360deg)}}
+@keyframes bubblePop{
+  0%{transform:translateY(10px) scale(.4);opacity:0}
+  30%{opacity:.9}
+  78%{transform:translateY(-8px) scale(1);opacity:.85}
+  100%{transform:translateY(-18px) scale(.2);opacity:0}
+}
+@keyframes brewPulse{
+  0%,100%{opacity:.48;transform:scale(.96)}
+  50%{opacity:.86;transform:scale(1.08)}
+}
+@keyframes steamRise{
+  0%{transform:translateY(28px) rotate(10deg) scale(.72);opacity:0}
+  26%{opacity:.45}
+  70%{opacity:.28}
+  100%{transform:translateY(-26px) rotate(-8deg) scale(1.14);opacity:0}
+}
+@keyframes sparkDrift{
+  0%,100%{transform:translate(0,0) scale(.8);opacity:.38}
+  50%{transform:translate(-12px,-16px) scale(1.28);opacity:.78}
+}
+@keyframes interfaceGlow{
+  0%{box-shadow:var(--shadowCard)}
+  30%{box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 35%,transparent),0 28px 82px var(--glowA),0 1px 0 rgba(255,255,255,.12) inset}
+  100%{box-shadow:var(--shadowCard)}
+}
+@media (max-width:1100px){
+  .magic-cauldron-scene{position:absolute;right:12px;top:92px;bottom:auto;opacity:.28;transform:scale(.86);transform-origin:top right}
+}
+@media (max-width:760px){
+  .magic-cauldron-scene{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .magic-cauldron-scene *{animation:none!important}
+}
+
+/* ===== Floating Cauldron Layer Fix =====
+   Keep the Prompt Alchemy cauldron above glass panels and independent from page scrolling. */
+.magic-cauldron-scene{
+  position:fixed!important;
+  right:28px!important;
+  bottom:26px!important;
+  z-index:60!important;
+  opacity:1!important;
+  filter:drop-shadow(0 28px 58px rgba(0,0,0,.48)) saturate(1.12)!important;
+  transform:translateZ(0);
+  isolation:isolate;
+}
+.magic-cauldron-scene::before{
+  inset:26px 0 -8px 10px!important;
+  opacity:.82!important;
+  filter:blur(14px)!important;
+  background:
+    radial-gradient(circle at 50% 68%,color-mix(in srgb,var(--accent) 36%,transparent),transparent 36%),
+    radial-gradient(circle at 60% 78%,color-mix(in srgb,var(--accent2) 34%,transparent),transparent 48%),
+    radial-gradient(circle at 48% 90%,rgba(0,0,0,.38),transparent 54%)!important;
+}
+.magic-cauldron-scene::after{
+  content:"";
+  position:absolute;
+  right:2px;
+  bottom:0;
+  width:292px;
+  height:226px;
+  border-radius:38px;
+  z-index:-1;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 50% 12%,rgba(255,255,255,.105),transparent 34%),
+    linear-gradient(160deg,rgba(8,13,25,.54),rgba(8,13,25,.18));
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:
+    0 24px 72px rgba(0,0,0,.36),
+    0 1px 0 rgba(255,255,255,.10) inset;
+  backdrop-filter:blur(10px) saturate(135%);
+}
+.cauldron-label{
+  z-index:9;
+  background:linear-gradient(135deg,rgba(255,255,255,.18),rgba(255,255,255,.06))!important;
+  border-color:rgba(255,255,255,.18)!important;
+}
+.cauldron-wrap{
+  z-index:2;
+  right:18px!important;
+  bottom:10px!important;
+}
+.cauldron-wrap::after{
+  content:"";
+  position:absolute;
+  left:42px;
+  bottom:18px;
+  width:174px;
+  height:34px;
+  border-radius:50%;
+  z-index:-1;
+  background:radial-gradient(ellipse,rgba(0,0,0,.54),transparent 68%);
+  filter:blur(5px);
+}
+.cauldron-rim,
+.cauldron-body{
+  border-color:rgba(255,255,255,.18)!important;
+}
+.cauldron-body{
+  box-shadow:
+    0 28px 48px rgba(0,0,0,.52),
+    0 1px 0 rgba(255,255,255,.14) inset!important;
+}
+.potion-surface{
+  box-shadow:
+    0 0 26px color-mix(in srgb,var(--accent) 60%,transparent),
+    0 0 58px color-mix(in srgb,var(--accent2) 44%,transparent),
+    0 1px 0 rgba(255,255,255,.40) inset!important;
+}
+body.prompt-brewing .magic-cauldron-scene::after{
+  animation:floatingPodGlow 1.15s ease-out;
+}
+@keyframes floatingPodGlow{
+  0%,100%{box-shadow:0 24px 72px rgba(0,0,0,.36),0 1px 0 rgba(255,255,255,.10) inset}
+  36%{box-shadow:0 32px 96px color-mix(in srgb,var(--accent) 34%,rgba(0,0,0,.26)),0 0 0 1px color-mix(in srgb,var(--accent) 32%,transparent),0 1px 0 rgba(255,255,255,.18) inset}
+}
+@media (max-width:1100px){
+  .magic-cauldron-scene{
+    position:fixed!important;
+    right:16px!important;
+    bottom:16px!important;
+    top:auto!important;
+    transform:scale(.78);
+    transform-origin:right bottom;
+    opacity:.92!important;
+  }
+}
+@media (max-width:760px){
+  .magic-cauldron-scene{
+    display:none!important;
+  }
+}
+
+/* ===== Content Spark module ===== */
+.content-spark-panel{
+  border-color:color-mix(in srgb,var(--accent2) 42%,var(--border));
+  background:
+    radial-gradient(circle at 15% 0%,color-mix(in srgb,var(--accent2) 20%,transparent),transparent 42%),
+    var(--panelGradient);
+}
+.content-spark-panel .panel-title{color:color-mix(in srgb,var(--accent2) 78%,white)}
+.content-spark-panel .panel-title::before{
+  background:linear-gradient(135deg,var(--accent2),var(--warm));
+  box-shadow:0 0 22px color-mix(in srgb,var(--accent2) 48%,transparent);
+}
+.content-card{
+  position:relative;
+  overflow:hidden;
+  border-radius:24px;
+  padding:24px;
+  background:
+    radial-gradient(circle at 0% 0%,color-mix(in srgb,var(--accent2) 22%,transparent),transparent 36%),
+    radial-gradient(circle at 100% 18%,color-mix(in srgb,var(--warm) 16%,transparent),transparent 34%),
+    linear-gradient(145deg,var(--surfaceA),var(--surfaceB));
+  border:1px solid color-mix(in srgb,var(--accent2) 32%,var(--border));
+  box-shadow:var(--shadowDeep),0 1px 0 rgba(255,255,255,.10) inset;
+}
+.content-card::before{
+  content:"";
+  position:absolute;
+  right:-80px;top:-90px;
+  width:260px;height:260px;border-radius:50%;
+  background:radial-gradient(circle,color-mix(in srgb,var(--accent2) 25%,transparent),transparent 66%);
+  pointer-events:none;
+}
+.content-card>*{position:relative;z-index:1}
+.content-card h2{
+  font-size:28px;
+  line-height:1.25;
+  margin-bottom:12px;
+  color:color-mix(in srgb,var(--accent2) 62%,white);
+}
+.content-meta{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 18px}
+.content-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:11px;
+  font-weight:800;
+  color:var(--fg);
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.055);
+}
+.content-section{margin-top:18px}
+.content-section-title{
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.65px;
+  text-transform:uppercase;
+  color:color-mix(in srgb,var(--accent2) 64%,white);
+  margin-bottom:8px;
+}
+.content-section-body{
+  color:var(--fg2);
+  font-size:13px;
+  line-height:1.75;
+}
+.content-script{
+  background:rgba(0,0,0,.22);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:16px;
+  padding:14px;
+  color:var(--fg);
+  line-height:1.72;
+  font-size:13px;
+}
+.content-script strong{color:var(--accent)}
+.content-list{padding-left:18px;color:var(--fg2);line-height:1.72;font-size:13px}
+.content-list li{margin:6px 0}
+
+</style>
+</head><body data-theme="aurora">
+<div class="header">
+  <div class="brand-lockup">
+    <div class="brand-mark">✦</div>
+    <div>
+      <div class="brand-kicker">AI CREATIVE PIPELINE</div>
+      <h1>AI Game Asset Workflow Studio <span>Portfolio-ready prompt & asset ideation tool</span></h1>
+    </div>
+  </div>
+  <div class="header-actions">
+    <div class="header-pill">Figma / Canva Handoff</div>
+    <div class="theme-switch" aria-label="主题切换">
+      <button class="theme-btn active" data-theme-btn="aurora" onclick="setTheme('aurora')">Aurora</button>
+      <button class="theme-btn" data-theme-btn="ember" onclick="setTheme('ember')">Ember</button>
+    </div>
+  </div>
+</div>
+
+<div class="magic-cauldron-scene" id="magicCauldronScene" aria-hidden="true">
+  <div class="magic-sparkle-field">
+    <span></span><span></span><span></span><span></span><span></span>
+  </div>
+  <div class="ingredient-trail" id="ingredientTrail"></div>
+  <div class="cauldron-label">Prompt Alchemy</div>
+  <div class="cauldron-wrap" id="cauldronWrap">
+    <div class="wand" id="magicWand"></div>
+    <div class="steam steam-a"></div>
+    <div class="steam steam-b"></div>
+    <div class="steam steam-c"></div>
+    <div class="brew-glow"></div>
+    <div class="cauldron">
+      <div class="cauldron-rim"></div>
+      <div class="potion-surface">
+        <div class="potion-swirl"></div>
+        <div class="bubble b1"></div>
+        <div class="bubble b2"></div>
+        <div class="bubble b3"></div>
+        <div class="bubble b4"></div>
+      </div>
+      <div class="cauldron-body"></div>
+      <div class="cauldron-foot foot-l"></div>
+      <div class="cauldron-foot foot-r"></div>
+    </div>
+    <div class="spell-burst" id="spellBurst">Prompt!</div>
+  </div>
+</div>
+<div class="main">
+<div class="left">
+
+<div class="panel idea-panel"><div class="panel-title">💡 创意起点 / Idea Dropper</div><div class="panel-content">
+  <div style="font-size:12px;color:var(--fg2);line-height:1.65;margin-bottom:16px">还没有明确方向时，先丢一个点子。生成后可以一键写入项目 Brief，再继续生成角色、场景、UI 或 image2 Prompt。</div>
+  <div class="idea-grid">
+    <div class="form-group"><label class="form-label">创作媒介</label><select id="idea-medium"><option value="image">图片创作</option><option value="video">视频 / 短片</option><option value="game">游戏原型</option><option value="ui">UI / 交互</option><option value="character">角色设定</option><option value="world">世界观设定</option><option value="social">社交媒体内容</option><option value="ad">广告创意</option></select></div>
+    <div class="form-group"><label class="form-label">情绪方向</label><select id="idea-mood"><option value="healing">治愈</option><option value="dark">暗黑</option><option value="epic">史诗</option><option value="funny">搞笑</option><option value="lonely">孤独</option><option value="dreamy">梦幻</option><option value="cyber">赛博</option><option value="retro">复古</option><option value="premium">商业高级感</option></select></div>
+    <div class="form-group"><label class="form-label">创意强度</label><select id="idea-risk"><option value="safe">稳妥可落地</option><option value="fresh" selected>有一点新鲜感</option><option value="wild">脑洞大开</option><option value="experimental">实验性强</option></select></div>
+    <div class="form-group"><label class="form-label">目标用途</label><select id="idea-purpose"><option value="portfolio">作品集</option><option value="commercial">商业项目</option><option value="prototype">游戏原型</option><option value="pitch">Pitch 提案</option><option value="shortvideo">短视频内容</option><option value="concept">概念设计</option></select></div>
+  </div>
+  <div class="form-group" style="margin-top:16px"><label class="form-label">可选补充方向</label><input id="idea-hint" placeholder="例：更适合像素游戏 / 更偏二次元 / 想要和花园、战争记忆有关"></div>
+  <div class="idea-actions"><button class="btn btn-primary" type="button" onclick="dropIdea()">🎲 丢一个点子</button><button class="btn idea-secondary" type="button" onclick="dropIdea(true)">再来一个</button></div>
+</div></div>
+
+<div class="panel content-spark-panel"><div class="panel-title">🎬 内容点子 / Content Spark</div><div class="panel-content">
+  <div style="font-size:12px;color:var(--fg2);line-height:1.65;margin-bottom:16px">不限于游戏：生成短视频脚本、剧本、故事、广告创意、社媒栏目等内容方向。适合从模糊灵感快速变成可执行创作方案。</div>
+  <div class="idea-grid">
+    <div class="form-group"><label class="form-label">内容类型</label><select id="content-type"><option value="shortvideo">短视频脚本</option><option value="story">故事 / 短篇小说</option><option value="screenplay">剧本 / 分镜脚本</option><option value="series">系列栏目</option><option value="adscript">广告创意脚本</option><option value="socialpost">社媒图文内容</option><option value="podcast">播客 / 口播</option><option value="worldessay">世界观短文</option></select></div>
+    <div class="form-group"><label class="form-label">题材方向</label><select id="content-genre"><option value="fantasy">幻想 / 奇幻</option><option value="scifi">科幻</option><option value="slice">生活观察</option><option value="suspense">悬疑</option><option value="romance">情感</option><option value="comedy">喜剧</option><option value="healing">治愈</option><option value="horror">轻恐怖</option><option value="workplace">职场 / 校园</option><option value="gameculture">游戏文化</option></select></div>
+    <div class="form-group"><label class="form-label">内容时长 / 篇幅</label><select id="content-length"><option value="15s">15 秒强钩子</option><option value="30s" selected>30 秒短内容</option><option value="60s">60 秒完整转折</option><option value="3min">3 分钟短片</option><option value="shortstory">短篇故事</option><option value="episode">一集剧本大纲</option></select></div>
+    <div class="form-group"><label class="form-label">叙事结构</label><select id="content-structure"><option value="hook">强钩子开场</option><option value="twist" selected>结尾反转</option><option value="loop">循环结尾</option><option value="threeact">三幕式</option><option value="contrast">强反差</option><option value="tutorial">教程 / 过程展示</option></select></div>
+  </div>
+  <div class="form-group" style="margin-top:16px"><label class="form-label">用户引导：你想要什么</label><textarea id="content-guide" placeholder="例：想做成小红书短视频，主题是 AI 游戏工具开发，语气轻松但专业，有记忆点" style="min-height:78px"></textarea></div>
+  <div class="form-group"><label class="form-label">避免项：不要什么</label><input id="content-avoid" placeholder="例：不要鸡汤，不要太中二，不要纯概念，要能拍出来"></div>
+  <div class="idea-actions"><button class="btn btn-primary" type="button" onclick="dropContentIdea()">🎞️ 生成内容点子</button><button class="btn idea-secondary" type="button" onclick="dropContentIdea(true)">换一个内容点子</button></div>
+</div></div>
+
+<div class="panel"><div class="panel-title">⚡ 模式切换</div><div class="panel-content">
+<div style="margin-bottom:10px"><div style="font-size:13px;font-weight:600;color:var(--fg)" id="modeLabel">Prompt 工坊模式</div><div style="font-size:10px;color:var(--fg2);margin-top:2px" id="modeDesc">生成结构化 Prompt → Gemini → 角色卡 + 出图 Prompt</div></div>
+<div class="mode-seg" id="modeSeg"><button class="active" data-mode="0" onclick="switchMode(0)">📝 工坊</button><button data-mode="1" onclick="switchMode(1)">🎨 SD/MJ</button><button data-mode="2" onclick="switchMode(2)">⚡ NanoBanana</button><button data-mode="3" onclick="switchMode(3)">🖼️ image2</button></div>
+</div></div>
+<div class="panel project-panel"><div class="panel-title">🧩 项目设定 / 风格锁定</div><div class="panel-content">
+  <div class="project-grid">
+    <div class="form-group"><label class="form-label">项目名</label><input id="brief-projectName" value="" placeholder="例如：战争记忆 / Neon Ruins / 星尘远征"></div>
+    <div class="form-group"><label class="form-label">项目类型</label><input id="brief-gameGenre" value="" placeholder="例如：VR叙事 / 像素横版 / ARPG / 解谜冒险"></div>
+    <div class="form-group wide"><label class="form-label">世界观关键词</label><input id="brief-world" value="" placeholder="例如：战争后遗症、幻想、废墟、鲜花、巨手"></div>
+    <div class="form-group"><label class="form-label">目标平台</label><select id="brief-platform"><option value="VR">VR</option><option value="Mobile">Mobile</option><option value="PC">PC</option><option value="Web">Web</option><option value="Console">Console</option></select></div>
+    <div class="form-group"><label class="form-label">目标玩家</label><input id="brief-audience" value="" placeholder="例如：剧情向玩家 / 独立游戏玩家 / 二次元用户"></div>
+    <div class="form-group"><label class="form-label">美术基调</label><input id="brief-artTone" value="" placeholder="例如：电影感、梦幻、压迫、治愈、克制"></div>
+    <div class="form-group"><label class="form-label">主色/材质</label><input id="brief-palette" value="" placeholder="例如：冷蓝灰 + 暖色花朵点缀 / 暗金 + 雾气"></div>
+    <div class="form-group wide"><label class="form-label">固定元素 / 不能跑偏</label><input id="brief-locks" value="" placeholder="例如：保持克制、不要花、轮廓清晰、不要低幼"></div>
+  </div>
+</div></div>
+<div class="panel"><div class="panel-title">🎯 素材类型</div><div class="panel-content"><div class="asset-grid" id="assetGrid"></div></div></div>
+<div class="panel"><div class="panel-title">⚙️ 参数设定</div><div class="panel-content" id="paramsContent"></div></div>
+<button class="btn btn-primary" onclick="buildPrompt()" id="buildBtn">⚡ 生成 Prompt</button>
+</div>
+<div class="right">
+<div class="output-panel visible" id="outputStart"><div class="empty-state"><div class="empty-orb">✦</div><h2>从一个点子开始，生成游戏资产与内容创作工作流</h2><p>可以先生成游戏资产点子，也可以生成短视频、剧本、故事、广告脚本等内容点子，再继续转成 Prompt、Brief 和交接资料。</p><div class="empty-steps"><span>Idea</span><span>Content</span><span>Brief</span><span>Prompt</span><span>Handoff</span></div></div></div>
+<div class="output-panel" id="outputResult"><div class="tabs"><div class="tab active" onclick="switchTab('guide')">📖 指南</div><div class="tab" onclick="switchTab('combined')">📋 完整 Prompt</div><div class="tab" onclick="switchTab('paste')">📥 粘贴结果</div></div><div id="tab-guide" class="panel-content"></div><div id="tab-combined" class="panel-content" style="display:none"><div id="combinedContent"></div></div><div id="tab-paste" class="panel-content" style="display:none"><div class="form-group"><label class="form-label">粘贴 Gemini 返回的 JSON</label><textarea id="pasteInput" placeholder="粘贴 JSON..." style="min-height:150px;font-size:11px"></textarea></div><button class="btn btn-primary" onclick="parseResult()">🔍 解析</button><div id="parseOutput"></div></div></div></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+let currentMode=0,currentAsset=null,currentCombinedPrompt='',directResultActive=false,lastBuildContext=null,lastIdea=null;
+const MODE_LABELS=['Prompt 工坊模式','直接出图 (SD/MJ)','直接出图 (NanoBanana)','直接出图 (image2)'],
+      MODE_DESCS=['生成结构化 Prompt → Gemini → 角色卡 + 出图 Prompt','直接生成图像 Prompt，复制到 SD / Midjourney','直接生成图像 Prompt，复制到 NanoBanana 生图','直接生成适合 ChatGPT 图像 / image2 的自然语言 Prompt'],
+      MODE_BTNS=['⚡ 生成 Prompt','🎨 直接出图 (SD/MJ)','⚡ 直接出图 (NanoBanana)','🖼️ 生成 image2 Prompt'],
+      STYLE_DETAILS={anime:'Japanese anime/manga illustration style, cel-shaded, vibrant colors, clean line art',realistic:'photorealistic, highly detailed, 8K quality, lifelike textures',pixel:'pixel art, 16-bit retro game aesthetic, clean pixel clusters',chinese:'Chinese ink painting meets fantasy art, ethereal atmosphere',cyberpunk:'cyberpunk aesthetic, neon lights, chrome and wires, rain-slicked streets',gothic:'dark gothic style, ornate details, deep shadows, blood-red accents',fantasy:'high fantasy, medieval European, magical atmosphere',scifi:'sci-fi, futuristic, holographic interfaces, sleek materials',minimal:'minimalist flat design, clean geometric shapes',dark:'dark mode UI, low light, subtle gradients',modern:'modern flat design, bold colors, clean typography',cartoon:'cartoon style, vibrant colors, exaggerated features',cute:'kawaii cute style, soft rounded shapes, pastel colors',norsec:'Norse/Viking style, runes, weathered metal, fur and leather'};
+
+const RANDOM_LEVELS={
+  off:'关闭随机：每次严格按照基础模板生成',
+  light:'轻度随机：只改变氛围、光照和构图',
+  standard:'标准随机：推荐，每次都有不同创意方向',
+  wild:'强随机：更有脑洞，适合探索新风格'
+};
+const GUIDE_PRIORITIES={
+  balanced:'平衡：用户引导与随机共同作用',
+  guided:'优先遵循用户引导，随机负责补充',
+  strict:'强遵循用户引导，随机只补细节'
+};
+let globalControlState={randomLevel:'standard',randomSeed:'',guidePriority:'balanced',userGuide:'',avoidGuide:''};
+const CREATIVE_POOLS={
+  mood:['quiet tension with hidden danger','hopeful but battle-worn atmosphere','mysterious dreamlike mood','ceremonial and sacred presence','lonely post-apocalyptic beauty','playful heroic energy','oppressive dark fantasy mood','elegant high-end commercial polish'],
+  lighting:['rim lighting from behind','soft volumetric god rays','cold moonlight with subtle fog','warm sunset backlight','neon reflections on wet surfaces','dramatic chiaroscuro shadows','glowing magical core light','overcast diffuse cinematic lighting'],
+  composition:['strong triangular composition','clear readable silhouette','centered hero composition','diagonal action composition','layered foreground-middle-background depth','minimal negative space framing','dynamic asymmetric layout','top-down tactical readability'],
+  camera:['low-angle heroic camera','slightly wide-angle lens','isometric game camera','close-up product render framing','orthographic clean asset view','cinematic 35mm lens look','macro detail-focused view','bird-eye strategic view'],
+  color:['muted teal and amber palette','deep crimson with black accents','icy blue and silver palette','warm gold with dusty brown tones','pastel lavender and cyan palette','toxic green energy accents','monochrome base with one vivid accent color','royal purple and antique gold palette'],
+  detail:['weathered scratches and small imperfections','subtle engraved patterns','floating dust and tiny particles','soft fabric folds and layered materials','polished metal edge highlights','ancient rune-like markings','organic vein-like texture details','clean premium UI micro-details'],
+  motif:['broken halo motif','spiral energy motif','wing-shaped visual motif','ancient relic motif','flower growing through ruins motif','clockwork gear motif','constellation/star-map motif','water ripple motif'],
+  constraint:['avoid generic fantasy clichés','make the first read understandable at thumbnail size','prioritize game-ready clarity over pure illustration','include one unexpected but believable design detail','make the asset feel commercially usable','keep the design readable on a dark background','avoid symmetrical sameness','add a small story hook visible in the design'],
+  asset:{
+    character:['asymmetrical costume silhouette','one signature prop that hints at backstory','distinct hairstyle or head ornament','battle damage that reveals personality','non-standard weapon handling pose','clear class identity readable from far away'],
+    ui:['one premium micro-interaction idea','clear hierarchy for mobile readability','decorative frame that matches the world setting','strong call-to-action button focus','modular components suitable for real production','a layout that works with localization text expansion'],
+    icon:['strong single-symbol readability','separated icon silhouettes with no clutter','consistent frame language across the set','one glow direction shared by all icons','clear rarity color coding','readable at 64x64 pixels'],
+    scene:['one landmark that guides player navigation','environmental storytelling through ruins or props','clear playable path and focal point','depth layers for parallax feeling','a hidden danger implied in the background','weather that affects the mood'],
+    item:['one unique silhouette hook','materials that imply rarity','a visible functional mechanism','small lore detail engraved on the surface','presentation suitable for inventory icon use','balanced design between ornate and readable'],
+    vfx:['clear anticipation-climax-aftermath rhythm','distinct particle shape language','readable damage area silhouette','color shift from charge to impact','transparent-background friendly edges','strong center of impact'],
+    client:['clean commercial marketing composition','safe area reserved for text placement','strong app-store thumbnail readability','one branded visual motif','layout suitable for A/B testing','premium launch-screen polish'],
+    npc:['clear threat level from silhouette','one memorable anatomical feature','behavior implied through pose','readable weak point or focal area','distinct movement personality','loot or faction hint embedded in design']
+  }
+};
+
+const $=id=>document.getElementById(id),modeLabel=$('modeLabel'),modeDesc=$('modeDesc'),buildBtn=$('buildBtn'),
+      outputStart=$('outputStart'),outputResult=$('outputResult'),combinedContent=$('combinedContent'),
+      assetGrid=$('assetGrid'),paramsContent=$('paramsContent'),guideTab=$('tab-guide'),
+      parseOutput=$('parseOutput'),toast=$('toast');
+
+function eh(s){return(typeof s!='string'&&(s=String(s)),s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'))}
+function copyText(t,m){
+  const ok=()=>showToast(m||'已复制');
+  const fail=()=>{
+    try{
+      const ta=document.createElement('textarea');
+      ta.value=t;ta.style.position='fixed';ta.style.left='-9999px';ta.style.top='-9999px';
+      document.body.appendChild(ta);ta.focus();ta.select();document.execCommand('copy');document.body.removeChild(ta);ok();
+    }catch(e){showToast('⚠️ 复制失败，请手动复制')}
+  };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok).catch(fail);
+  else fail();
+}
+function showToast(m){toast.textContent=m;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2500)}
+
+function readGlobalControlState(){
+  return {
+    randomLevel:$('field-randomLevel')?.value||globalControlState.randomLevel||'standard',
+    randomSeed:$('field-randomSeed')?.value||globalControlState.randomSeed||makeSeed(),
+    guidePriority:$('field-guidePriority')?.value||globalControlState.guidePriority||'balanced',
+    userGuide:$('field-userGuide')?.value||globalControlState.userGuide||'',
+    avoidGuide:$('field-avoidGuide')?.value||globalControlState.avoidGuide||''
+  };
+}
+function syncGlobalControlState(){Object.assign(globalControlState,readGlobalControlState())}
+function appendGuideText(text,targetId='field-userGuide'){
+  const el=$(targetId); if(!el) return;
+  const cur=el.value.trim();
+  if(!cur) el.value=text;
+  else if(/[；;。.!?]$/.test(cur)) el.value=cur+' '+text;
+  else el.value=cur+'；'+text;
+  syncGlobalControlState();
+  el.focus();
+  showToast(targetId==='field-avoidGuide'?'✅ 已加入避免项':'✅ 已加入用户引导');
+}
+function clearGuideField(targetId){
+  const el=$(targetId); if(!el) return;
+  el.value='';
+  syncGlobalControlState();
+  showToast('已清空');
+}
+
+
+function ideaSelectValue(id){return ($(id)?.value||'').trim()}
+function ideaSelectText(id){const el=$(id);return el&&el.options[el.selectedIndex]?el.options[el.selectedIndex].text:ideaSelectValue(id)}
+const IDEA_MEDIUM_TARGETS={
+  image:['单张概念图','海报式主视觉','系列插画第一张'],
+  video:['30 秒短片','循环视觉短视频','游戏概念预告片'],
+  game:['3 分钟游戏原型','可交互叙事 Demo','一个核心机制原型'],
+  ui:['游戏主菜单界面','沉浸式 HUD','世界观化交互界面'],
+  character:['主角设定','NPC 设定','Boss / 怪物设定'],
+  world:['世界观提案','关卡主题','叙事概念包'],
+  social:['小红书/抖音内容系列','创作过程展示帖','作品集预热内容'],
+  ad:['游戏概念广告','活动 Banner 创意','品牌视觉提案']
+};
+const IDEA_MOOD_STYLES={
+  healing:{tone:'温柔、清澈、带一点失而复得的希望',light:'柔和暖光与干净空气感',avoid:'避免低幼和过甜'},
+  dark:{tone:'压迫、神秘、隐藏危险但保持克制',light:'低照度、边缘光和深阴影',avoid:'避免廉价恐怖和血腥堆叠'},
+  epic:{tone:'宏大、仪式感、命运感',light:'史诗逆光、云层裂缝和大尺度空间',avoid:'避免元素过散'},
+  funny:{tone:'荒诞、反差萌、轻松但有记忆点',light:'明快照明和夸张焦点',avoid:'避免无意义搞怪'},
+  lonely:{tone:'安静、空旷、个人情绪和微弱希望',light:'低饱和远景、孤独主体、细小光源',avoid:'避免画面太空无信息'},
+  dreamy:{tone:'梦境、漂浮、柔光、非现实比例',light:'轻雾、散射光和细碎发光元素',avoid:'避免过度糊和主体不清'},
+  cyber:{tone:'技术与情绪冲突、城市孤独感',light:'霓虹雨夜、冷暖对比、玻璃反射',avoid:'避免赛博元素乱堆'},
+  retro:{tone:'怀旧、旧设备、复古游戏质感',light:'CRT、磁带颗粒、旧广告色彩',avoid:'避免脏乱和低清晰度'},
+  premium:{tone:'高级商业感、克制、清晰、可落地',light:'精致材质、留白和统一主色',avoid:'避免装饰过满'}
+};
+const IDEA_RISK_STYLES={
+  safe:'保持概念清晰、制作成本可控，适合真实项目落地',
+  fresh:'在熟悉题材里加入一个新鲜反转，让作品更容易被记住',
+  wild:'允许更大胆的世界观设定，但仍然保持一条清楚主线',
+  experimental:'强调实验性表达，适合作品集展示 AI 创作边界'
+};
+const IDEA_PURPOSE_STYLES={
+  portfolio:'突出作品集表达：概念清楚、视觉记忆点强、能展示 AI 工作流能力',
+  commercial:'突出商业可用性：信息明确、风格统一、适合团队继续生产',
+  prototype:'突出快速原型：一个核心机制、一个强视觉钩子、可在短时间验证',
+  pitch:'突出提案表达：一句话好懂、视觉卖点明确、适合做成展示页',
+  shortvideo:'突出短视频传播：3 秒内有视觉钩子，结尾有反转或循环点',
+  concept:'突出概念设计：世界观、角色动机和视觉规则要能延展'
+};
+const IDEA_CONCEPT_PACKS=[
+  {
+    key:'rain-florist',
+    titles:['雨夜机械花店','只在雨夜开门的花店','霓虹街角的机械花匠'],
+    subject:'一家由机器人经营的深夜花店',
+    setting:'霓虹雨夜的旧城区街角，橱窗里只有温暖灯光',
+    goal:'帮助失去重要记忆的人挑选一朵会发光的机械花',
+    conflict:'每卖出一朵花，机器人都会忘记一段自己的记忆',
+    visual:'冷色雨夜、暖色橱窗、机械花瓣、玻璃反射、克制霓虹',
+    mechanic:'用户选择不同花朵，城市街道会短暂显现一段顾客记忆',
+    twist:'最后一束花其实是机器人留给自己的告别',
+    palette:'深蓝雨夜 + 暖橙窗光 + 少量青绿色机械光',
+    extensions:['可扩展为 NPC 角色设定：机械花匠','可扩展为场景概念：雨夜花店街角','可扩展为 UI：花语选择界面','可扩展为短片：一位顾客买走最后一朵花']
+  },
+  {
+    key:'memory-garden',
+    titles:['回头生长的花园','废墟里的慢慢开花','走过之后才出现的春天'],
+    subject:'一片会在玩家身后生长的废墟花园',
+    setting:'战争后的灰色废墟，玩家走过的路径会逐渐长出植物',
+    goal:'让玩家通过行走修复一段被压抑的记忆',
+    conflict:'越接近记忆中心，场景越会短暂恢复成过去的战争幻象',
+    visual:'灰蓝废墟、暖色花朵、尘埃光束、破碎墙体与新生植物',
+    mechanic:'玩家不能直接攻击，只能通过移动路径让花朵连接成安全路线',
+    twist:'真正被修复的不是城市，而是主角愿意继续生活的能力',
+    palette:'冷灰蓝 + 暖黄花朵 + 柔和白色尘光',
+    extensions:['可扩展为 VR 叙事关卡','可扩展为横版像素场景','可扩展为环境解谜机制','可扩展为作品集主视觉']
+  },
+  {
+    key:'crt-dream-eater',
+    titles:['吞梦旧电视','午夜频道的噩梦清理员','会吃掉噩梦的电视机'],
+    subject:'一台会吞掉噩梦的旧电视',
+    setting:'90 年代卧室、CRT 屏幕、磁带、贴纸和雨声',
+    goal:'把人们的噩梦变成可以整理的录像片段',
+    conflict:'每删除一段噩梦，现实房间里就会少掉一个物品',
+    visual:'CRT 扫描线、复古塑料、紫蓝暗光、录像噪点、温暖台灯',
+    mechanic:'用户拖拽录像片段重新排序，改变梦境结局',
+    twist:'所有噩梦其实都在保护一个不该被忘记的真相',
+    palette:'暗紫蓝 + 旧电视绿 + 暖黄色台灯',
+    extensions:['可扩展为解谜 UI','可扩展为短视频循环视觉','可扩展为怪物图标系统','可扩展为独立游戏原型']
+  },
+  {
+    key:'subway-shrine',
+    titles:['地铁尽头的神社','末班车之后的许愿站','被遗忘的地下神社'],
+    subject:'一座藏在废弃地铁站里的小神社',
+    setting:'末班车后的地下站台，自动售票机旁出现微弱烛光',
+    goal:'让路过的人把无法说出口的愿望投进旧票箱',
+    conflict:'每个愿望都会改变下一班列车开往的地方',
+    visual:'潮湿瓷砖、纸符、旧车票、烛光、幽暗轨道、少量金色颗粒',
+    mechanic:'玩家组合车票、站名和纸符，生成不同目的地',
+    twist:'神社并不通向远方，而是通向许愿者最不敢面对的房间',
+    palette:'墨绿黑 + 旧纸黄 + 烛火金',
+    extensions:['可扩展为场景概念','可扩展为 UI 车票系统','可扩展为叙事 Demo','可扩展为短片分镜']
+  },
+  {
+    key:'star-postman',
+    titles:['修星邮差','给星星补丁的人','星尘邮局的最后一封信'],
+    subject:'一位负责修补星星的邮差',
+    setting:'漂浮邮局、星尘轨道、云层之间的旧邮箱',
+    goal:'把人们没能送出的信投递到对应的星星上',
+    conflict:'每封信都会让一颗星星变亮，但邮差自己的影子会变淡',
+    visual:'云海、纸信、星尘、蓝白夜空、暖色邮包、轻盈漂浮感',
+    mechanic:'玩家根据信件情绪选择星座路线，让夜空形成新的图案',
+    twist:'最后一封信来自邮差未来的自己',
+    palette:'深夜蓝 + 星光白 + 邮包暖棕',
+    extensions:['可扩展为角色设定','可扩展为世界观地图','可扩展为治愈短片','可扩展为移动端休闲游戏']
+  },
+  {
+    key:'loading-ghost',
+    titles:['加载界面里的幽灵','住在进度条里的小幽灵','永远差 1% 的朋友'],
+    subject:'一个住在游戏加载界面里的幽灵',
+    setting:'进度条、提示文字、破碎图标和半透明 UI 空间',
+    goal:'帮助玩家找回被系统隐藏的关卡入口',
+    conflict:'幽灵每修复一个 UI 元素，自己的身体就会变得更像像素噪点',
+    visual:'半透明 UI、发光进度条、柔软小幽灵、故障像素、深色背景',
+    mechanic:'玩家点击、拖动和重排 UI 组件，让加载界面变成可玩的地图',
+    twist:'加载失败不是 bug，而是幽灵在阻止玩家进入危险关卡',
+    palette:'深靛蓝 + 进度条青光 + 少量粉紫故障色',
+    extensions:['可扩展为 UI/交互原型','可扩展为小怪物角色','可扩展为关卡入口动画','可扩展为作品集互动 Demo']
+  },
+  {
+    key:'laugh-collector',
+    titles:['收集笑声的小怪物','瓶子里的笑声博物馆','城市角落的笑声采集员'],
+    subject:'一只收集人类笑声的小怪物',
+    setting:'温暖但杂乱的小房间，墙上摆满装着笑声的玻璃瓶',
+    goal:'把人们快要忘掉的快乐保存起来',
+    conflict:'它越努力收集笑声，城市里的人越发现自己笑不出来',
+    visual:'圆润剪影、玻璃瓶、暖色灯串、细小声波符号、手作质感',
+    mechanic:'玩家通过声音节奏匹配不同瓶子，让房间逐渐恢复颜色',
+    twist:'怪物不是偷走笑声，而是在替一座悲伤城市保管快乐',
+    palette:'奶油黄 + 暖棕 + 少量薄荷绿',
+    extensions:['可扩展为可爱 NPC','可扩展为声音互动玩法','可扩展为社交媒体短视频','可扩展为图标套装']
+  },
+  {
+    key:'armor-bloom',
+    titles:['开花的旧盔甲','战场上最后一副盔甲','从铁锈里长出的花'],
+    subject:'一副在战场中央长出花朵的旧盔甲',
+    setting:'寂静战场、断裂旗帜、铁锈、野草和晨雾',
+    goal:'让玩家通过整理遗物理解一场战争后的个人故事',
+    conflict:'每触碰一件遗物，盔甲都会短暂显现原主人的记忆姿态',
+    visual:'铁锈金属、白色小花、晨雾、破旗、低饱和大地色',
+    mechanic:'玩家把散落遗物放回正确位置，盔甲逐渐从武器变成纪念碑',
+    twist:'盔甲属于敌方士兵，但记忆里没有真正的敌人',
+    palette:'铁锈棕 + 雾灰 + 白色花朵',
+    extensions:['可扩展为道具/装备设计','可扩展为战争后遗症主题场景','可扩展为 VR 交互作品','可扩展为情绪化短片']
+  }
+];
+function ideaRand(seed){return seededRandom(seed)}
+function ideaPick(arr,rand){return arr[Math.floor(rand()*arr.length)]}
+function ideaToneFromRisk(risk){return IDEA_RISK_STYLES[risk]||IDEA_RISK_STYLES.fresh}
+function ideaPurposeLine(purpose){return IDEA_PURPOSE_STYLES[purpose]||IDEA_PURPOSE_STYLES.portfolio}
+function buildIdea(){
+  const medium=ideaSelectValue('idea-medium')||'image',
+        mood=ideaSelectValue('idea-mood')||'healing',
+        risk=ideaSelectValue('idea-risk')||'fresh',
+        purpose=ideaSelectValue('idea-purpose')||'portfolio',
+        hint=(ideaSelectValue('idea-hint')||'').trim();
+  const seed=makeSeed();
+  const rand=ideaRand(`${medium}-${mood}-${risk}-${purpose}-${hint}-${seed}`);
+  let pack=ideaPick(IDEA_CONCEPT_PACKS,rand);
+  if(hint){
+    const hit=IDEA_CONCEPT_PACKS.find(p=>(p.title+p.subject+p.setting+p.visual+p.palette).includes(hint)||hint.includes(p.subject.slice(0,2)));
+    if(hit&&rand()>.35) pack=hit;
+  }
+  const moodStyle=IDEA_MOOD_STYLES[mood]||IDEA_MOOD_STYLES.healing;
+  const mediumTarget=ideaPick(IDEA_MEDIUM_TARGETS[medium]||IDEA_MEDIUM_TARGETS.image,rand);
+  const title=ideaPick(pack.titles,rand);
+  const titleWithHint=hint&&hint.length<=12&&!title.includes(hint)?`${title}：${hint}`:title;
+  const conceptCore=`${pack.subject}出现在${pack.setting}。它的目标是${pack.goal}，但${pack.conflict}。`;
+  const oneLine=`做一个适合「${ideaSelectText('idea-medium')}」的${mediumTarget}：${conceptCore}`;
+  const visual=`${pack.visual}；${moodStyle.light}；${pack.palette}`;
+  const mechanic=`${pack.mechanic}。${ideaToneFromRisk(risk)}。`;
+  const twist=`${pack.twist}。${ideaPurposeLine(purpose)}。${hint?`额外遵循用户补充：${hint}。`:''}`;
+  const moodLine=moodStyle.tone;
+  const extensions=[
+    ...pack.extensions.slice(0,3),
+    medium==='video'?'可扩展为 3 镜头短片脚本':medium==='ui'?'可扩展为一套世界观化 UI 组件':medium==='game'?'可扩展为一个可玩的核心循环':`可扩展为 ${mediumTarget} 的第二版变体`
+  ];
+  const projectBrief={
+    projectName:titleWithHint,
+    gameGenre:mediumTarget,
+    world:`${pack.subject}；${pack.setting}；${pack.goal}`,
+    platform:medium==='video'||medium==='social'?'Web':(medium==='game'?'PC':'Web'),
+    audience:purpose==='commercial'?'商业项目用户 / 泛娱乐受众':(purpose==='portfolio'?'作品集评审 / AI应用开发岗位':'创意内容用户'),
+    artTone:`${moodLine}；${visual}`,
+    palette:pack.palette,
+    locks:`主线必须围绕「${pack.subject}」和「${pack.goal}」；不要把视觉关键词硬拼成标题；${moodStyle.avoid}；${hint?`用户补充：${hint}；`:''}避免跑偏为无关题材。`
+  };
+  const imagePrompt=`Create a polished ${mediumTarget} for a creative game/media project titled "${titleWithHint}". Core concept: ${conceptCore} Visual direction: ${visual}. Mood: ${moodLine}. Interaction or story hook: ${mechanic} Narrative twist: ${twist} Keep the idea coherent: every visual detail should support the subject, setting, goal, and conflict instead of becoming random decorative keywords.`;
+  return {seed,medium,mood,risk,purpose,hint,title:titleWithHint,mediumTarget,oneLine,subject:pack.subject,conflict:pack.conflict,twist,visual,mechanic,moodLine,extensions,projectBrief,imagePrompt,conceptCore,setting:pack.setting,goal:pack.goal,palette:pack.palette};
+}
+
+function dropIdea(again){
+  lastIdea=buildIdea();
+  currentCombinedPrompt=lastIdea.imagePrompt;
+  directResultActive=true;
+  outputStart.style.display='none';outputResult.classList.add('visible');
+  const html=ideaCardHtml(lastIdea);
+  guideTab.innerHTML=html;combinedContent.innerHTML=html;
+  document.querySelectorAll('.tabs .tab').forEach(t=>t.classList.toggle('active',t.getAttribute('onclick')==='switchTab(\'guide\')'));
+  document.querySelectorAll('[id^="tab-"]').forEach(d=>d.style.display='none');
+  guideTab.style.display='block';
+  showToast(again?'🎲 又丢了一个新点子':'💡 已生成创意点子');
+}
+function ideaCardHtml(idea){
+  return `<div class="idea-card"><h2>💡 ${eh(idea.title)}</h2><div class="idea-meta"><span class="idea-pill">Seed ${eh(idea.seed)}</span><span class="idea-pill">${eh(ideaSelectText('idea-medium'))}</span><span class="idea-pill">${eh(ideaSelectText('idea-mood'))}</span><span class="idea-pill">${eh(ideaSelectText('idea-risk'))}</span><span class="idea-pill">${eh(ideaSelectText('idea-purpose'))}</span></div><div class="idea-section"><div class="idea-section-title">一句话概念</div><div class="idea-section-body">${eh(idea.oneLine)}</div></div><div class="idea-section"><div class="idea-section-title">创意逻辑</div><div class="idea-section-body"><strong>主体：</strong>${eh(idea.subject)}<br><strong>场景：</strong>${eh(idea.setting||'')}<br><strong>目标：</strong>${eh(idea.goal||'')}<br><strong>矛盾：</strong>${eh(idea.conflict)}</div></div><div class="idea-section"><div class="idea-section-title">视觉方向</div><div class="idea-section-body">${eh(idea.visual)}</div></div><div class="idea-section"><div class="idea-section-title">核心机制 / 叙事钩子</div><div class="idea-section-body">${eh(idea.mechanic)} ${eh(idea.twist)}</div></div><div class="idea-section"><div class="idea-section-title">可延展方向</div><ul class="idea-list">${idea.extensions.map(x=>`<li>${eh(x)}</li>`).join('')}</ul></div><div class="idea-section"><div class="idea-section-title">推荐 image2 / 创作 Prompt</div><div class="idea-prompt-box">${eh(idea.imagePrompt)}</div></div><div class="action-bar"><button class="btn btn-copy" onclick="copyIdeaPrompt()">📋 复制点子 Prompt</button><button class="btn btn-sm" onclick="applyIdeaToBrief()">写入项目 Brief</button><button class="btn btn-sm" onclick="useIdeaAsGuide()">作为用户引导</button></div></div>`;
+}
+function copyIdeaPrompt(){if(!lastIdea){showToast('请先丢一个点子');return}copyText(lastIdea.imagePrompt,'✅ 点子 Prompt 已复制')}
+function applyIdeaToBrief(){
+  if(!lastIdea){showToast('请先丢一个点子');return}
+  const p=lastIdea.projectBrief;
+  const map={'brief-projectName':p.projectName,'brief-gameGenre':p.gameGenre,'brief-world':p.world,'brief-platform':p.platform,'brief-audience':p.audience,'brief-artTone':p.artTone,'brief-palette':p.palette,'brief-locks':p.locks};
+  Object.entries(map).forEach(([id,val])=>{const el=$(id);if(el&&val) el.value=val});
+  showToast('✅ 已写入项目 Brief / 风格锁定');
+}
+function useIdeaAsGuide(){
+  if(!lastIdea){showToast('请先丢一个点子');return}
+  const text=`围绕点子「${lastIdea.title}」展开：${lastIdea.oneLine} 主体：${lastIdea.subject}；场景：${lastIdea.setting||''}；目标：${lastIdea.goal||''}；矛盾：${lastIdea.conflict}；视觉方向：${lastIdea.visual}；核心机制：${lastIdea.mechanic}`;
+  const el=$('field-userGuide');
+  if(el){el.value=text;syncGlobalControlState();showToast('✅ 已作为用户引导');}
+  else showToast('请先选择一个素材类型');
+}
+
+
+let lastContentIdea=null;
+const CONTENT_TYPE_TARGETS={
+  shortvideo:'短视频脚本',
+  story:'短篇故事',
+  screenplay:'剧本 / 分镜脚本',
+  series:'系列栏目策划',
+  adscript:'广告创意脚本',
+  socialpost:'社媒图文内容',
+  podcast:'播客 / 口播内容',
+  worldessay:'世界观短文'
+};
+const CONTENT_GENRE_PACKS={
+  fantasy:[
+    {core:'一个只在月光下营业的旧物店，出售人们遗失的勇气',conflict:'每买走一件旧物，店主就会失去一段关于自己的记忆',image:'月光、旧木柜、玻璃瓶、手写标签、柔和尘埃',turn:'顾客最后发现自己才是店主一直等待的那个人'},
+    {core:'一座会根据来访者情绪改变房间的旅馆',conflict:'房间越舒适，客人越不愿离开现实问题',image:'旋转楼梯、变形门牌、暖色壁灯、会呼吸的墙纸',turn:'旅馆不是逃避之地，而是把人送回现实的中转站'}
+  ],
+  scifi:[
+    {core:'一款能预测用户明天心情的日历应用突然开始写诗',conflict:'它越准确，用户越怀疑自己的选择是否真实',image:'透明屏幕、日历格、城市夜景、冷白 UI 光',turn:'日历不是预测未来，而是在替未来的自己求救'},
+    {core:'城市里所有广告屏都开始播放同一个普通人的童年录像',conflict:'没人知道为什么只有这个人的记忆被公开',image:'巨型屏幕、雨夜街道、蓝紫霓虹、围观人群',turn:'那些录像其实是城市 AI 最早学会的情感样本'}
+  ],
+  slice:[
+    {core:'一个年轻人每天给冰箱里的剩菜写便签，慢慢发现便签在回信',conflict:'回信总能说中他不敢面对的生活问题',image:'出租屋、便利贴、微波炉光、深夜厨房',turn:'回信不是魔法，而是过去的自己留下的生活备忘录'},
+    {core:'一家洗衣店能洗掉衣服上的坏情绪',conflict:'情绪被洗掉后，顾客也忘记了为什么难过',image:'转动洗衣机、暖白灯、透明水汽、旧街区',turn:'老板偷偷保存每个人被洗掉的情绪，做成一本城市日记'}
+  ],
+  suspense:[
+    {core:'一个人发现自己手机相册每天都会多出一张明天的照片',conflict:'照片里的细节越来越像犯罪现场',image:'手机冷光、空房间、模糊照片、凌晨时间戳',turn:'照片不是预告，而是另一个自己在求救'},
+    {core:'电梯里每天出现一个不存在的楼层按钮',conflict:'每按一次，现实中的某个人就会忘记主角',image:'金属电梯、红色楼层灯、监控噪点、狭窄空间',turn:'那个楼层是主角被所有人遗忘后的存放处'}
+  ],
+  romance:[
+    {core:'两个人只能通过外卖备注交流，因为他们永远错过见面时间',conflict:'备注越来越像情书，但没人敢留下真实姓名',image:'雨夜外卖袋、便利店灯、手机备注、城市路口',turn:'他们其实住在同一栋楼，只是作息完全相反'},
+    {core:'一间照相馆能拍出情侣分手后的最后一张合照',conflict:'照片越完美，越说明关系已经无法回到过去',image:'胶片相机、暖色暗房、旧相框、柔焦光',turn:'最后一张照片里出现的是他们各自更好的未来'}
+  ],
+  comedy:[
+    {core:'一个社恐魔王被迫经营一家勇者投诉热线',conflict:'勇者们的问题都不是战斗，而是职场、恋爱和房贷',image:'地狱办公室、电话线、咖啡杯、夸张表情',turn:'魔王靠心理咨询意外降低了世界的冒险事故率'},
+    {core:'一只会写 PPT 的猫成为公司最受欢迎的实习生',conflict:'它只会用猫的逻辑解决商业问题',image:'会议室、激光笔、猫爪键盘、严肃职场反差',turn:'它的方案真的成功了，因为客户也养猫'}
+  ],
+  healing:[
+    {core:'一个失眠的人开始替城市里的路灯写晚安短信',conflict:'短信真的让陌生人睡着，但他自己越来越清醒',image:'深夜街道、路灯、手机微光、安静窗户',turn:'最后一条晚安短信是整座城市回给他的'},
+    {core:'一家便利店在凌晨三点出售“明天的好消息”',conflict:'好消息必须用今天的一件小遗憾交换',image:'便利店冷柜、收银台、暖色招牌、夜色',turn:'好消息不是预测，而是让人愿意继续尝试的理由'}
+  ],
+  horror:[
+    {core:'一个人发现智能音箱开始模仿已经搬走的室友说话',conflict:'音箱说出的细节只有室友本人知道',image:'昏暗客厅、蓝色指示灯、空沙发、低频噪声',turn:'真正消失的不是室友，而是主角对这间房的记忆'},
+    {core:'小区公告栏每天更新一条没人承认发布的寻物启事',conflict:'被寻找的东西越来越不像物品，而像身体的一部分',image:'旧公告栏、雨水、手写纸条、楼道声控灯',turn:'所有启事都来自未来想找回自己的主角'}
+  ],
+  workplace:[
+    {core:'一个实习生发现公司打印机会吐出未来的辞职信',conflict:'每封辞职信都写着不同人的真实心声',image:'办公室冷光、打印纸、工牌、深夜加班',turn:'最后一封辞职信署名是公司本身'},
+    {core:'学校广播每天提前播报一名学生当天会说的谎话',conflict:'大家开始用谎话保护彼此',image:'操场、广播室、旧喇叭、午后阳光',turn:'广播不是揭穿谎言，而是在阻止一场误会'}
+  ],
+  gameculture:[
+    {core:'一个玩家发现自己每删掉一个游戏存档，现实里就多一个未完成的选择',conflict:'他必须决定哪些失败值得被保留',image:'存档列表、像素光、房间屏幕、半夜电脑桌',turn:'通关条件不是完美结局，而是承认某些失败也是经历'},
+    {core:'一个 NPC 在游戏停服前一天开始给玩家写告别信',conflict:'玩家无法回复，只能在地图里寻找它留下的碎片',image:'空服务器、黄昏地图、旧 UI、掉线提示',turn:'NPC 的信其实是开发者没能说出口的道歉'}
+  ]
+};
+const CONTENT_STRUCTURE_GUIDE={
+  hook:'开头 3 秒必须抛出异常设定或强画面',
+  twist:'结尾需要反转前面的理解，但不能推翻核心情绪',
+  loop:'结尾要回到开头画面，形成可循环观看',
+  threeact:'按开端、冲突、转折三段推进',
+  contrast:'用强反差制造记忆点，例如严肃场景讲荒诞问题',
+  tutorial:'以过程展示推进，同时保留一个情绪或创意钩子'
+};
+const CONTENT_LENGTH_GUIDE={
+  '15s':'15 秒：一句强钩子 + 一个画面变化 + 一个结尾点',
+  '30s':'30 秒：开场钩子、冲突推进、结尾反转',
+  '60s':'60 秒：设定、人物选择、升级、反转、余味',
+  '3min':'3 分钟：三幕结构，允许出现完整角色动机',
+  shortstory:'短篇故事：重视氛围、人物动机和结尾余韵',
+  episode:'一集剧本大纲：需要 A 线目标、B 线情绪和结尾钩子'
+};
+function contentValue(id){return ($(id)?.value||'').trim()}
+function contentText(id){const el=$(id);return el&&el.options?el.options[el.selectedIndex].text:contentValue(id)}
+function buildContentIdea(){
+  const type=contentValue('content-type')||'shortvideo',
+        genre=contentValue('content-genre')||'fantasy',
+        length=contentValue('content-length')||'30s',
+        structure=contentValue('content-structure')||'twist',
+        guide=contentValue('content-guide'),
+        avoid=contentValue('content-avoid');
+  const seed=makeSeed();
+  const rand=ideaRand(`content-${type}-${genre}-${length}-${structure}-${guide}-${avoid}-${seed}`);
+  const packs=CONTENT_GENRE_PACKS[genre]||CONTENT_GENRE_PACKS.fantasy;
+  const pack=ideaPick(packs,rand);
+  const titleBase=pack.core.split('，')[0].replace(/^一个|^一款|^一家|^一间|^一座|^一只/,'');
+  const title=guide&&guide.length<=10?`${titleBase}：${guide}`:titleBase;
+  const target=CONTENT_TYPE_TARGETS[type]||'内容创意';
+  const structureLine=CONTENT_STRUCTURE_GUIDE[structure]||CONTENT_STRUCTURE_GUIDE.twist;
+  const lengthLine=CONTENT_LENGTH_GUIDE[length]||CONTENT_LENGTH_GUIDE['30s'];
+  const userLine=guide?`用户引导：${guide}。`:'';
+  const avoidLine=avoid?`避免：${avoid}。`:'';
+  const hook=`如果${pack.core}，观众会在第一秒想知道：${pack.conflict}`;
+  const logline=`${pack.core}。${pack.conflict}。`;
+  const beats=[
+    `开场：用「${pack.image}」建立第一眼画面，并抛出设定：${pack.core}。`,
+    `推进：让矛盾具体发生——${pack.conflict}。`,
+    `转折：${pack.turn}。`,
+    `收束：保留一个能继续扩展的动作、物件或台词。`
+  ];
+  const prompt=`Create a ${target} in Chinese. Title: "${title}". Genre direction: ${contentText('content-genre')}. Format: ${contentText('content-length')}. Structure: ${contentText('content-structure')}. Core premise: ${logline}. Visual / tone direction: ${pack.image}. Main turn: ${pack.turn}. ${userLine}${avoidLine}Output a practical creative plan with hook, beat sheet, sample lines, visual notes, and production notes. Keep the idea coherent and executable.`;
+  return {seed,type,genre,length,structure,guide,avoid,title,target,hook,logline,visual:pack.image,turn:pack.turn,beats,prompt,structureLine,lengthLine};
+}
+function dropContentIdea(again){
+  triggerCauldronBrew();
+  lastContentIdea=buildContentIdea();
+  currentCombinedPrompt=lastContentIdea.prompt;
+  directResultActive=true;
+  outputStart.style.display='none';outputResult.classList.add('visible');
+  const html=contentIdeaCardHtml(lastContentIdea);
+  guideTab.innerHTML=html;combinedContent.innerHTML=html;
+  document.querySelectorAll('.tabs .tab').forEach(t=>t.classList.toggle('active',t.getAttribute('onclick')==='switchTab(\'guide\')'));
+  document.querySelectorAll('[id^="tab-"]').forEach(d=>d.style.display='none');
+  guideTab.style.display='block';
+  showToast(again?'🎞️ 已换一个内容点子':'🎬 已生成内容点子');
+}
+function contentIdeaCardHtml(idea){
+  return `<div class="content-card"><h2>🎬 ${eh(idea.title)}</h2><div class="content-meta"><span class="content-pill">Seed ${eh(idea.seed)}</span><span class="content-pill">${eh(contentText('content-type'))}</span><span class="content-pill">${eh(contentText('content-genre'))}</span><span class="content-pill">${eh(contentText('content-length'))}</span><span class="content-pill">${eh(contentText('content-structure'))}</span></div><div class="content-section"><div class="content-section-title">一句话 Hook</div><div class="content-section-body">${eh(idea.hook)}</div></div><div class="content-section"><div class="content-section-title">核心设定</div><div class="content-section-body">${eh(idea.logline)}</div></div><div class="content-section"><div class="content-section-title">结构与篇幅</div><div class="content-section-body">${eh(idea.structureLine)}；${eh(idea.lengthLine)}</div></div><div class="content-section"><div class="content-section-title">脚本骨架</div><div class="content-script">${idea.beats.map((x,i)=>`<div><strong>${i+1}.</strong> ${eh(x)}</div>`).join('')}</div></div><div class="content-section"><div class="content-section-title">视觉 / 语气方向</div><div class="content-section-body">${eh(idea.visual)}</div></div><div class="content-section"><div class="content-section-title">创作 Prompt</div><div class="idea-prompt-box">${eh(idea.prompt)}</div></div><div class="action-bar"><button class="btn btn-copy" onclick="copyContentPrompt()">📋 复制内容 Prompt</button><button class="btn btn-sm" onclick="applyContentToBrief()">写入项目 Brief</button><button class="btn btn-sm" onclick="useContentAsGuide()">作为用户引导</button></div></div>`;
+}
+function copyContentPrompt(){if(!lastContentIdea){showToast('请先生成内容点子');return}copyText(lastContentIdea.prompt,'✅ 内容 Prompt 已复制')}
+function applyContentToBrief(){
+  if(!lastContentIdea){showToast('请先生成内容点子');return}
+  const map={
+    'brief-projectName':lastContentIdea.title,
+    'brief-gameGenre':lastContentIdea.target,
+    'brief-world':lastContentIdea.logline,
+    'brief-platform':lastContentIdea.type==='shortvideo'||lastContentIdea.type==='socialpost'?'Web':'PC',
+    'brief-audience':'内容创作者 / 作品集评审 / AI 应用开发岗位',
+    'brief-artTone':`${lastContentIdea.visual}；${contentText('content-genre')}；${contentText('content-structure')}`,
+    'brief-palette':lastContentIdea.visual,
+    'brief-locks':`保留核心转折：${lastContentIdea.turn}；${lastContentIdea.avoid?`避免：${lastContentIdea.avoid}`:'不要变成无关题材'}`
+  };
+  Object.entries(map).forEach(([id,val])=>{const el=$(id);if(el&&val) el.value=val});
+  showToast('✅ 内容点子已写入项目 Brief');
+}
+function useContentAsGuide(){
+  if(!lastContentIdea){showToast('请先生成内容点子');return}
+  const text=`围绕内容点子「${lastContentIdea.title}」展开：${lastContentIdea.logline} 结构：${lastContentIdea.structureLine}；视觉/语气：${lastContentIdea.visual}；结尾转折：${lastContentIdea.turn}`;
+  const el=$('field-userGuide');
+  if(el){el.value=text;syncGlobalControlState();showToast('✅ 已作为用户引导');}
+  else showToast('请先选择一个素材类型');
+}
+
+function briefValue(id){return ($(id)?.value||'').trim()}
+function readProjectBrief(){
+  return {
+    projectName:briefValue('brief-projectName'),
+    gameGenre:briefValue('brief-gameGenre'),
+    world:briefValue('brief-world'),
+    platform:briefValue('brief-platform'),
+    audience:briefValue('brief-audience'),
+    artTone:briefValue('brief-artTone'),
+    palette:briefValue('brief-palette'),
+    locks:briefValue('brief-locks')
+  };
+}
+function hasProjectBrief(p){return p&&Object.values(p).some(v=>String(v||'').trim())}
+function projectBriefText(project,isDirect){
+  if(!hasProjectBrief(project)) return '';
+  const lines=[
+    ['Project',project.projectName],['Game type',project.gameGenre],['Platform',project.platform],['Audience',project.audience],['World keywords',project.world],['Art direction',project.artTone],['Palette/materials',project.palette],['Locked constraints',project.locks]
+  ].filter(([k,v])=>v).map(([k,v])=>`- ${k}: ${v}`).join('\n');
+  if(isDirect){
+    return `\n\nProject brief and style lock: ${Object.entries(project).filter(([k,v])=>v).map(([k,v])=>`${k}: ${v}`).join('; ')}. Keep this asset visually consistent with the project identity and constraints.`;
+  }
+  return `\n\n---\n\nPROJECT BRIEF / STYLE LOCK\nUse this as shared context for all asset decisions so the result feels like part of one coherent game project:\n${lines}\nThe generated asset must stay consistent with this project brief unless the user explicitly requests otherwise.`;
+}
+function projectSummaryHtml(project){
+  if(!hasProjectBrief(project)) return '';
+  const items=[['Project',project.projectName],['Genre',project.gameGenre],['Platform',project.platform],['Audience',project.audience],['World',project.world],['Art tone',project.artTone],['Palette',project.palette],['Locks',project.locks]].filter(([k,v])=>v);
+  return `<div class="design-token-grid">${items.map(([k,v])=>`<div class="design-token"><div class="k">${eh(k)}</div><div class="v">${eh(v)}</div></div>`).join('')}</div>`;
+}
+function makeHandoffData(){
+  const ctx=lastBuildContext||{};
+  return {
+    tool:'AI Game Asset Workflow Studio',
+    generatedAt:new Date().toISOString(),
+    mode:MODE_LABELS[currentMode]||ctx.mode||'',
+    assetType:ctx.assetName||currentAsset?.name||'',
+    project:ctx.project||readProjectBrief(),
+    assetValues:ctx.values||{},
+    creativeVariant:ctx.variant||null,
+    prompt:currentCombinedPrompt||ctx.prompt||'',
+    designTokens:{
+      mood:ctx.project?.artTone||briefValue('brief-artTone'),
+      palette:ctx.project?.palette||briefValue('brief-palette'),
+      platform:ctx.project?.platform||briefValue('brief-platform'),
+      lockedConstraints:ctx.project?.locks||briefValue('brief-locks')
+    }
+  };
+}
+function makeFigmaMarkdown(){
+  const d=makeHandoffData(),p=d.project||{},v=d.creativeVariant||{};
+  return `# ${p.projectName||'Game Asset'} — Figma Handoff\n\n## Asset\n- Type: ${d.assetType}\n- Mode: ${d.mode}\n- Platform: ${p.platform||''}\n\n## Project Brief\n- Game genre: ${p.gameGenre||''}\n- World keywords: ${p.world||''}\n- Audience: ${p.audience||''}\n- Art direction: ${p.artTone||''}\n- Palette/materials: ${p.palette||''}\n- Locked constraints: ${p.locks||''}\n\n## Design Tokens\n- Mood: ${d.designTokens.mood||''}\n- Palette: ${d.designTokens.palette||''}\n- Platform: ${d.designTokens.platform||''}\n- Constraints: ${d.designTokens.lockedConstraints||''}\n\n## Creative Controls\n- Seed: ${v.seed||''}\n- Random level: ${v.levelLabel||''}\n- Directions: ${v.directions?v.directions.map(x=>x.join(': ')).join('; '):''}\n\n## Prompt\n${d.prompt}\n`;
+}
+function makeCanvaPack(){
+  const d=makeHandoffData(),p=d.project||{};
+  return `Canva presentation pack\n\nTitle: ${p.projectName||'AI Game Asset Workflow Studio'}\nSubtitle: ${d.assetType} / ${d.mode}\nProject summary: ${p.world||''}\nVisual tone: ${p.artTone||''}\nPalette: ${p.palette||''}\nDo not use: ${p.locks||''}\nPrompt to place in design notes:\n${d.prompt}`;
+}
+function downloadFile(name,content,type='text/plain'){
+  const blob=new Blob([content],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+function copyFigmaHandoff(){copyText(makeFigmaMarkdown(),'✅ 已复制 Figma 交接文档')}
+function copyCanvaPack(){copyText(makeCanvaPack(),'✅ 已复制 Canva 展示文案包')}
+function exportHandoffJson(){downloadFile('game-asset-handoff.json',JSON.stringify(makeHandoffData(),null,2),'application/json')}
+function exportHandoffMarkdown(){downloadFile('game-asset-handoff.md',makeFigmaMarkdown(),'text/markdown')}
+function handoffActionsHtml(){
+  return `<div class="handoff-box"><div class="handoff-title">🧰 Figma / Canva Handoff</div><div class="handoff-desc">把本次 Prompt、项目 Brief、风格锁定和随机控制信息打包，方便继续做设计系统、作品集页面或团队交接。</div><div class="handoff-actions"><button class="btn figma-btn" onclick="copyFigmaHandoff()">复制 Figma Brief</button><button class="btn canva-btn" onclick="copyCanvaPack()">复制 Canva 文案包</button><button class="btn btn-sm" onclick="exportHandoffJson()">导出 JSON</button><button class="btn btn-sm" onclick="exportHandoffMarkdown()">导出 Markdown</button></div></div>`;
+}
+
+function switchMode(m){
+  directResultActive=false;currentCombinedPrompt='';combinedContent.innerHTML='';parseOutput.innerHTML='';currentMode=m;
+  modeLabel.textContent=MODE_LABELS[m];
+  modeDesc.textContent=MODE_DESCS[m];
+  buildBtn.textContent=MODE_BTNS[m];
+  document.querySelectorAll('#modeSeg button').forEach((b,i)=>b.classList.toggle('active',i===m));
+  switchTab('guide');
+}
+
+const ASSET_TYPES=[
+{id:'character',icon:'🎭',name:'角色设计',desc:'角色卡+属性+技能',
+fields:[{key:'concept',label:'角色概念',type:'text',placeholder:'赛博朋克猫娘刺客 / 古风剑仙...',default:'赛博朋克猫娘刺客'},{key:'style',label:'美术风格',type:'select',options:{anime:'日系二次元',realistic:'写实',pixel:'像素风',chinese:'国风/武侠',cyberpunk:'赛博朋克',gothic:'暗黑哥特'}},{key:'gameType',label:'游戏类型',type:'select',options:{rpg:'RPG/MMO',moba:'MOBA',action:'动作/ARPG',card:'卡牌策略',slg:'SLG策略'}}],
+systemPrompt:v=>`You are a professional game character designer. Generate a complete character sheet.
+Output ONLY raw JSON (no markdown blocks):
+{
+  "name": "Character name (creative, memorable)",
+  "title": "Title/epithet",
+  "backstory": "Backstory (include origin and motivation)",
+  "role": "Describe the character\\'s combat role in this game",
+  "attributes": {"attack":85,"defense":60,"speed":92,"intelligence":78,"charisma":70},
+  "skills": [{"name":"Skill name","desc":"Short description under 20 words"}],
+  "imagePrompt": "A detailed English prompt for Stable Diffusion or Midjourney. Include appearance, clothing, pose, scene, lighting. Art style: ${v.styleDetail||v.styleLabel||v.style}. End with --ar 2:3",
+  "tags":["tag1","tag2","tag3"]
+}
+All 5 attribute values must sum between 300 and 380. imagePrompt MUST be in English and very detailed.`,
+userPrompt:v=>`Character concept: ${v.concept}\nArt style: ${v.styleDetail||v.styleLabel||v.style}\nGame genre: ${v.gameTypeLabel||v.gameType}\n\nCreate a unique, memorable character suitable for a commercial game.`},
+{id:'ui',icon:'🖼️',name:'游戏UI',desc:'界面/菜单/HUD',
+fields:[{key:'uiType',label:'UI类型',type:'select',options:{main_menu:'主菜单界面',hud:'战斗HUD',inventory:'背包/物品栏',skill_tree:'技能树界面',shop:'商店界面',dialog:'对话/剧情框',settings:'设置界面',loading:'加载界面'}},{key:'style',label:'美术风格',type:'select',options:{anime:'日系二次元',fantasy:'中世纪奇幻',scifi:'科幻未来',chinese:'国风/武侠',minimal:'极简扁平',dark:'暗黑风格'}},{key:'resolution',label:'屏幕比例',type:'select',options:{'16:9':'16:9横屏','9:16':'9:16竖屏(手游)','4:3':'4:3经典'}}],
+systemPrompt:v=>`You are a professional game UI/UX designer. Design a game interface.
+Output ONLY raw JSON:
+{
+  "uiName": "界面名称",
+  "layout": "布局描述",
+  "components": ["核心UI组件1","核心组件2","核心组件3","核心组件4","核心组件5"],
+  "colorScheme": {"primary":"主色hex","secondary":"辅色hex","accent":"强调色hex","bg":"背景色hex"},
+  "typography": {"titleFont":"标题字体风格","bodyFont":"正文字体风格"},
+  "interactions": ["交互说明1","交互说明2","交互说明3"],
+  "imagePrompt": "详细英文SD/Midjourney prompt。游戏${v.uiTypeLabel||v.uiType}界面设计，${v.styleDetail||v.styleLabel||v.style}风格，${v.resolution}比例。--ar ${v.resolution}"
+}`,
+userPrompt:v=>`设计一个${v.uiTypeLabel||v.uiType}，风格为${v.styleDetail||v.styleLabel||v.style}，比例${v.resolution}`},
+{id:'icon',icon:'🔘',name:'图标/按钮',desc:'技能图标/道具图标/UI按钮',
+fields:[{key:'iconType',label:'图标类型',type:'select',options:{skill:'技能图标',item:'道具/装备图标',button:'UI按钮',buff:'Buff/状态图标',currency:'货币/资源图标',class:'职业图标',achievement:'成就徽章'}},{key:'style',label:'美术风格',type:'select',options:{anime:'日系二次元',fantasy:'魔幻风格',scifi:'科幻风格',chinese:'国风',pixel:'像素风',modern:'现代扁平'}},{key:'quantity',label:'生成数量',type:'select',options:{'1':'单个','3':'3个一组','6':'6个一套(推荐)'}}],
+systemPrompt:v=>`You are a game icon designer.
+Output ONLY raw JSON:
+{
+  "icons": [{
+    "name": "图标名称",
+    "visual": "视觉描述",
+    "shape": "圆形/方形/菱形/异形",
+    "colorPalette": ["色1","色2","色3"],
+    "imagePrompt": "详细英文SD prompt。单个${v.iconTypeLabel||v.iconType}，${v.styleDetail||v.styleLabel||v.style}风格，游戏UI图标，正方形构图，高清细节，--ar 1:1"
+  }]
+}`,
+userPrompt:v=>`设计${v.quantity||6}个${v.styleDetail||v.styleLabel||v.style}风格的${v.iconTypeLabel||v.iconType}`},
+{id:'scene',icon:'🗺️',name:'场景/地图',desc:'关卡背景/大地图/环境概念',
+fields:[{key:'sceneType',label:'场景类型',type:'select',options:{town:'城镇/村庄',dungeon:'地下城/副本',forest:'森林/自然',desert:'沙漠/废土',snow:'雪域/冰原',space:'太空/科幻',palace:'宫殿/建筑',battle:'战场/竞技场'}},{key:'style',label:'美术风格',type:'select',options:{anime:'日系二次元',realistic:'写实3A',pixel:'像素风',chinese:'国风水墨',cyberpunk:'赛博朋克',gothic:'暗黑哥特',cartoon:'卡通风格'}},{key:'view',label:'视角',type:'select',options:{topdown:'俯视/等距','2d_side':'横版/侧视',first_person:'第一人称','3d_pan':'全景/鸟瞰'}}],
+systemPrompt:v=>`You are a game environment artist. Design a scene concept.
+Output ONLY raw JSON:
+{
+  "sceneName": "场景名称",
+  "atmosphere": "氛围描述",
+  "keyLandmarks": ["地标1","地标2","地标3"],
+  "lighting": {"time":"时间","mood":"情绪基调","key":"主光源方向"},
+  "colorPalette": ["主色","辅色","点缀色"],
+  "levelDesign": "关卡设计要点",
+  "imagePrompt": "详细英文SD/Midjourney prompt。${v.sceneTypeLabel||v.sceneType}场景，${v.styleDetail||v.styleLabel||v.style}风格，${v.viewLabel||v.view}视角。--ar 16:9 --style cinematic"
+}`,
+userPrompt:v=>`设计一个${v.sceneTypeLabel||v.sceneType}场景，${v.styleDetail||v.styleLabel||v.style}风格，${v.viewLabel||v.view}视角`},
+{id:'item',icon:'⚔️',name:'道具/装备',desc:'武器/防具/消耗品设计',
+fields:[{key:'itemType',label:'道具类型',type:'select',options:{weapon:'武器(剑/弓/法杖等)',armor:'防具(盔甲/长袍/盾)',accessory:'饰品(戒指/项链)',potion:'药水/消耗品',treasure:'宝箱/宝物',mount:'坐骑/宠物'}},{key:'style',label:'美术风格',type:'select',options:{anime:'日系二次元',fantasy:'西方魔幻',chinese:'中国仙侠',scifi:'科幻未来',gothic:'暗黑风格',norsec:'北欧/维京'}},{key:'rarity',label:'稀有度',type:'select',options:{common:'普通(灰)',rare:'稀有(蓝)',epic:'史诗(紫)',legendary:'传说(金)',mythic:'神话(红)'}}],
+systemPrompt:v=>`You are a game item designer.
+Output ONLY raw JSON:
+{
+  "itemName": "道具名",
+  "rarity": "${v.rarityLabel||v.rarity}",
+  "description": "物品描述",
+  "stats": {"属性1":"+数值","属性2":"+数值"},
+  "specialEffect": "特殊效果",
+  "lore": "背景故事",
+  "materials": ["材质1","材质2"],
+  "imagePrompt": "详细英文SD prompt。${v.itemTypeLabel||v.itemType}设计，${v.styleDetail||v.styleLabel||v.style}风格，${v.rarityLabel||v.rarity}品质。--ar 1:1 --style game-asset"
+}`,
+userPrompt:v=>`设计一个${v.styleDetail||v.styleLabel||v.style}风格的${v.rarityLabel||v.rarity}品质${v.itemTypeLabel||v.itemType}`},
+{id:'vfx',icon:'✨',name:'技能特效',desc:'法术/打击/爆炸VFX',
+fields:[{key:'vfxType',label:'特效类型',type:'select',options:{fire:'火焰法术',ice:'冰霜法术',lightning:'雷电法术',heal:'治疗/圣光',explosion:'爆炸/冲击',slash:'斩击/刀光',buff:'Buff光环',summon:'召唤/传送门'}},{key:'style',label:'美术风格',type:'select',options:{anime:'日系动画风',realistic:'写实电影风',pixel:'像素风',fantasy:'魔幻风',scifi:'科幻/能量风',chinese:'中国仙侠风'}},{key:'intensity',label:'特效强度',type:'select',options:{light:'轻量(普攻级)',medium:'中等(技能级)',heavy:'强力(大招/终极技)',ultimate:'终极(全屏技能)'}}],
+systemPrompt:v=>`You are a game VFX designer.
+Output ONLY raw JSON:
+{
+  "vfxName": "特效名称",
+  "intensity": "${v.intensityLabel||v.intensity}",
+  "timeline": {"anticipation":"前摇","climax":"爆发","aftermath":"残留"},
+  "particleSystem": ["粒子特性1","粒子特性2","粒子特性3"],
+  "colorProgression": ["起始色","中间色","结束色"],
+  "screenShake": "屏幕震动强度",
+  "imagePrompt": "详细英文SD/Midjourney prompt。${v.vfxTypeLabel||v.vfxType}视觉特效，${v.styleDetail||v.styleLabel||v.style}风格，${v.intensityLabel||v.intensity}强度。透明背景。--ar 1:1"
+}`,
+userPrompt:v=>`设计一个${v.styleDetail||v.styleLabel||v.style}风格的${v.vfxTypeLabel||v.vfxType}特效，强度${v.intensityLabel||v.intensity}`},
+{id:'client',icon:'📱',name:'客户端元素',desc:'启动图/弹窗/引导/图标',
+fields:[{key:'elementType',label:'元素类型',type:'select',options:{splash:'启动画面/Splash',app_icon:'App图标',onboarding:'新手引导页',popup:'弹窗/公告',banner:'Banner/活动横幅',profile:'头像框/徽章',loading:'Loading动画帧',empty_state:'空状态插画'}},{key:'style',label:'美术风格',type:'select',options:{anime:'日系二次元',modern:'现代扁平',fantasy:'魔幻风格',chinese:'国风',minimal:'极简设计',cute:'可爱萌系'}},{key:'platform',label:'目标平台',type:'select',options:{mobile:'手游(竖屏)','mobile_h':'手游(横屏)',pc:'PC客户端',console:'主机'}}],
+systemPrompt:v=>`You are a game client visual designer.
+Output ONLY raw JSON:
+{
+  "elementName": "元素名称",
+  "purpose": "功能说明",
+  "composition": "构图描述",
+  "styleGuide": {"primaryColor":"主色hex","fontStyle":"字体风格","cornerRadius":"圆角风格","texture":"材质质感"},
+  "accessibility": ["可访问性考虑1","考虑2"],
+  "imagePrompt": "详细英文SD prompt。游戏${v.elementTypeLabel||v.elementType}，${v.styleDetail||v.styleLabel||v.style}风格，${v.platformLabel||v.platform}平台。--ar ${v.platform==='mobile'?'9:16':'16:9'}"
+}`,
+userPrompt:v=>`设计${v.styleDetail||v.styleLabel||v.style}风格的${v.elementTypeLabel||v.elementType}，${v.platformLabel||v.platform}平台`},
+{id:'npc',icon:'🤖',name:'NPC/怪物',desc:'敌人/Boss/中立生物设计',
+fields:[{key:'npcType',label:'NPC类型',type:'select',options:{boss:'Boss怪物',elite:'精英怪',mob:'普通小怪',npc:'友好NPC',merchant:'商人NPC',summon:'召唤生物',pet:'宠物/跟宠',mount:'坐骑'}},{key:'style',label:'美术风格',type:'select',options:{anime:'日系二次元',realistic:'写实/恐怖',fantasy:'西方魔幻',chinese:'中国妖怪/仙兽',scifi:'外星/科幻',gothic:'暗黑哥特',cartoon:'卡通可爱'}},{key:'difficulty',label:'难度等级',type:'select',options:{trivial:'杂鱼',regular:'普通',elite:'精英',boss:'Boss级',world:'世界Boss'}}],
+systemPrompt:v=>`You are a game creature designer.
+Output ONLY raw JSON:
+{
+  "name": "怪物/NPC名称",
+  "title": "称号/种类",
+  "type": "${v.npcTypeLabel||v.npcType}",
+  "difficulty": "${v.difficultyLabel||v.difficulty}",
+  "appearance": "外观描述",
+  "behavior": "行为模式",
+  "abilities": ["能力1","能力2","能力3"],
+  "loot": ["掉落物品1","掉落物品2"],
+  "lore": "背景故事",
+  "imagePrompt": "详细英文SD prompt。${v.npcTypeLabel||v.npcType}设计，${v.styleDetail||v.styleLabel||v.style}风格，${v.difficultyLabel||v.difficulty}难度。--ar 3:4 --style game-creature"
+}`,
+userPrompt:v=>`设计${v.styleDetail||v.styleLabel||v.style}风格的${v.difficultyLabel||v.difficulty}难度${v.npcTypeLabel||v.npcType}`}
+];
+
+function init(){
+  currentAsset=ASSET_TYPES[0];
+  assetGrid.innerHTML=ASSET_TYPES.map((a,i)=>`<div class="asset-card${i===0?' selected':''}" onclick="selectAsset(${i})"><div class="icon">${a.icon}</div><div class="name">${a.name}</div><div class="desc">${a.desc}</div></div>`).join('');
+  renderParams();renderGuideTab();
+}
+function selectAsset(idx){
+  syncGlobalControlState();
+  currentAsset=ASSET_TYPES[idx];
+  document.querySelectorAll('.asset-card').forEach(c=>c.classList.remove('selected'));
+  assetGrid.children[idx].classList.add('selected');
+  renderParams();
+  resetOutput();
+}
+function renderParams(){
+  syncGlobalControlState();
+  if(!globalControlState.randomSeed) globalControlState.randomSeed=makeSeed();
+  const state={...globalControlState};
+  const fieldHtml=currentAsset.fields.map(f=>{
+    if(f.type==='select'){
+      const opts=Object.entries(f.options).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+      return `<div class="form-group"><label class="form-label">${f.label}</label><select id="field-${f.key}">${opts}</select></div>`;
+    }
+    return `<div class="form-group"><label class="form-label">${f.label}</label><input id="field-${f.key}" value="${eh(f.default||'')}" placeholder="${eh(f.placeholder||'')}"></div>`;
+  }).join('');
+  paramsContent.innerHTML=fieldHtml+`<div class="random-box">
+    <div class="random-head">🎲 随机创意引擎</div>
+    <div class="random-desc">每次点击生成都会自动换一个创意种子，让同一套参数产生不同的氛围、构图、光照、细节和叙事钩子。</div>
+    <div class="form-group"><label class="form-label">随机强度</label><select id="field-randomLevel">
+      <option value="standard" ${state.randomLevel==='standard'?'selected':''}>${RANDOM_LEVELS.standard}</option>
+      <option value="light" ${state.randomLevel==='light'?'selected':''}>${RANDOM_LEVELS.light}</option>
+      <option value="wild" ${state.randomLevel==='wild'?'selected':''}>${RANDOM_LEVELS.wild}</option>
+      <option value="off" ${state.randomLevel==='off'?'selected':''}>${RANDOM_LEVELS.off}</option>
+    </select></div>
+    <div class="form-group"><label class="form-label">当前创意种子</label><div class="seed-row"><input id="field-randomSeed" value="${eh(state.randomSeed)}" readonly><button class="btn btn-sm" type="button" onclick="randomizeCreativeSeed(false)">换一组</button></div></div>
+  </div>
+  <div class="guide-box">
+    <div class="guide-head">🧭 用户引导</div>
+    <div class="guide-desc">你可以直接告诉工具“更想要什么”和“尽量避免什么”。这样随机不会瞎跑，而是围绕你的意图做变化。</div>
+    <div class="form-group"><label class="form-label">你想强调什么</label><textarea id="field-userGuide" placeholder="例：更偏冷色调，强调高级感与剪影识别度，服装不要太暴露，整体更商业化" style="min-height:88px">${eh(state.userGuide||'')}</textarea><div class="guide-inline-help">推荐写法：目标气质 + 想突出什么 + 适用场景。</div><div class="guide-chip-row"><button class="guide-chip" type="button" onclick="appendGuideText('更强调剪影识别度')">剪影更强</button><button class="guide-chip" type="button" onclick="appendGuideText('整体更有高级感与商业化完成度')">更商业化</button><button class="guide-chip" type="button" onclick="appendGuideText('画面更有故事感和叙事氛围')">更有故事感</button><button class="guide-chip" type="button" onclick="appendGuideText('色彩更克制统一，不要太杂')">色彩更克制</button><button class="guide-chip" type="button" onclick="appendGuideText('更适合手游或商业项目落地')">更适合落地</button><button class="guide-chip" type="button" onclick="clearGuideField('field-userGuide')">清空</button></div></div>
+    <div class="form-group"><label class="form-label">尽量避免什么</label><textarea id="field-avoidGuide" placeholder="例：不要Q版，不要儿童向，不要过度复杂花纹，不要太多机械零件" style="min-height:68px">${eh(state.avoidGuide||'')}</textarea><div class="guide-inline-help">可填写不想要的风格、元素、年龄感、复杂度或配色。</div><div class="guide-chip-row"><button class="guide-chip" type="button" onclick="appendGuideText('不要Q版或过于幼态','field-avoidGuide')">不要Q版</button><button class="guide-chip" type="button" onclick="appendGuideText('不要过度复杂的装饰','field-avoidGuide')">不要太花</button><button class="guide-chip" type="button" onclick="appendGuideText('不要过多文字或说明标注','field-avoidGuide')">少文字</button><button class="guide-chip" type="button" onclick="appendGuideText('不要低幼或儿童向气质','field-avoidGuide')">不要低幼</button><button class="guide-chip" type="button" onclick="clearGuideField('field-avoidGuide')">清空</button></div></div>
+    <div class="form-group"><label class="form-label">引导优先级</label><select id="field-guidePriority">
+      <option value="balanced" ${state.guidePriority==='balanced'?'selected':''}>${GUIDE_PRIORITIES.balanced}</option>
+      <option value="guided" ${state.guidePriority==='guided'?'selected':''}>${GUIDE_PRIORITIES.guided}</option>
+      <option value="strict" ${state.guidePriority==='strict'?'selected':''}>${GUIDE_PRIORITIES.strict}</option>
+    </select></div>
+  </div>`;
+}
+
+function getFieldValues(){
+  const v={};
+  currentAsset.fields.forEach(f=>{const el=$('field-'+f.key);if(el) v[f.key]=el.value});
+  return v;
+}
+function getFieldLabel(asset,key,value){
+  const field=asset.fields.find(f=>f.key===key);
+  return field&&field.options?field.options[value]||value:value;
+}
+function getFieldValuesWithLabels(){
+  const v=getFieldValues();
+  currentAsset.fields.forEach(f=>{
+    if(f.type==='select'){
+      v[f.key+'Raw']=v[f.key];
+      v[f.key+'Label']=getFieldLabel(currentAsset,f.key,v[f.key]);
+    }
+  });
+  v.styleDetail=STYLE_DETAILS[v.style]||v.styleLabel||v.style;
+  v.projectBrief=readProjectBrief();
+  v.userGuide=$('field-userGuide')?.value.trim()||'';
+  v.avoidGuide=$('field-avoidGuide')?.value.trim()||'';
+  v.guidePriority=$('field-guidePriority')?.value||'balanced';
+  v.guidePriorityLabel=GUIDE_PRIORITIES[v.guidePriority]||v.guidePriority;
+  syncGlobalControlState();
+  const variant=buildCreativeVariant(currentAsset.id);
+  v.creativeVariant=variant;
+  return v;
+}
+function makeSeed(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out='';
+  for(let i=0;i<8;i++) out+=chars[Math.floor(Math.random()*chars.length)];
+  return out.slice(0,4)+'-'+out.slice(4);
+}
+function randomizeCreativeSeed(quiet){
+  const el=$('field-randomSeed');
+  if(el) el.value=makeSeed();
+  syncGlobalControlState();
+  if(!quiet) showToast('🎲 已换一组创意种子');
+}
+function hashSeed(str){
+  let h=2166136261;
+  for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}
+  return h>>>0;
+}
+function seededRandom(seed){
+  let t=hashSeed(seed)||1;
+  return function(){
+    t+=0x6D2B79F5;
+    let r=t;
+    r=Math.imul(r^(r>>>15),r|1);
+    r^=r+Math.imul(r^(r>>>7),r|61);
+    return ((r^(r>>>14))>>>0)/4294967296;
+  }
+}
+function pickRand(arr,rand){return arr[Math.floor(rand()*arr.length)]}
+function buildCreativeVariant(assetId){
+  const levelEl=$('field-randomLevel'),seedEl=$('field-randomSeed');
+  const guideText=($('field-userGuide')?.value||'').trim();
+  const avoidText=($('field-avoidGuide')?.value||'').trim();
+  const guidePriority=$('field-guidePriority')?.value||'balanced';
+  const guidance={
+    enabled:!!(guideText||avoidText),
+    text:guideText,
+    avoid:avoidText,
+    priority:guidePriority,
+    priorityLabel:GUIDE_PRIORITIES[guidePriority]||guidePriority
+  };
+  const level=levelEl?levelEl.value:'standard';
+  if(level==='off') return {enabled:false,level,levelLabel:RANDOM_LEVELS.off,guidance};
+  if(seedEl) seedEl.value=makeSeed();
+  syncGlobalControlState();
+  const seed=seedEl&&seedEl.value?seedEl.value:makeSeed();
+  const rand=seededRandom(`${assetId}-${level}-${seed}`);
+  const base=[
+    ['Mood',pickRand(CREATIVE_POOLS.mood,rand)],
+    ['Lighting',pickRand(CREATIVE_POOLS.lighting,rand)],
+    ['Composition',pickRand(CREATIVE_POOLS.composition,rand)]
+  ];
+  if(level==='standard'||level==='wild'){
+    base.push(['Color direction',pickRand(CREATIVE_POOLS.color,rand)]);
+    base.push(['Detail language',pickRand(CREATIVE_POOLS.detail,rand)]);
+    base.push(['Asset-specific twist',pickRand(CREATIVE_POOLS.asset[assetId]||CREATIVE_POOLS.asset.item,rand)]);
+  }
+  if(level==='wild'){
+    base.push(['Camera / view',pickRand(CREATIVE_POOLS.camera,rand)]);
+    base.push(['Visual motif',pickRand(CREATIVE_POOLS.motif,rand)]);
+    base.push(['Constraint',pickRand(CREATIVE_POOLS.constraint,rand)]);
+  }
+  return {enabled:true,seed,level,levelLabel:RANDOM_LEVELS[level]||level,directions:base,guidance};
+}
+function creativeVariantText(variant,isDirect){
+  if(!variant) return '';
+  const hasRandom=!!variant.enabled;
+  const g=variant.guidance||{};
+  const hasGuide=!!g.enabled;
+  if(!hasRandom&&!hasGuide) return '';
+  if(isDirect){
+    const parts=[];
+    if(hasGuide){
+      let guideLine=`User guidance priority: ${g.priorityLabel}. Follow these user intentions carefully: ${g.text||'Keep the user intent consistent.'}`;
+      if(g.avoid) guideLine+=` Avoid these elements: ${g.avoid}.`;
+      guideLine+=hasRandom?' Let the random creative directions support the guidance and never contradict it.':' Keep the output tightly aligned with these instructions.';
+      parts.push(guideLine);
+    }
+    if(hasRandom){
+      parts.push(`Creative variation seed: ${variant.seed}. Integrate these creative directions naturally: ${variant.directions.map(([k,v])=>`${k}: ${v}`).join('; ')}. Keep the core user-selected asset type, style, and game purpose unchanged.`);
+    }
+    return `
+
+${parts.join(' ')}`;
+  }
+  const blocks=[];
+  if(hasGuide){
+    blocks.push(`USER GUIDANCE PRIORITY: ${g.priorityLabel}
+Treat the following as the main control signal from the user. It should shape the naming, visual direction, storytelling, mechanics, and imagePrompt.
+- Emphasize: ${g.text||'Keep the original intent coherent.'}
+${g.avoid?`- Avoid: ${g.avoid}
+`:''}${g.priority==='strict'?'If any random direction conflicts with the user guidance, the guidance must win.':'Use the guidance as a strong preference and let random variation only enrich it.'}`);
+  }
+  if(hasRandom){
+    const lines=variant.directions.map(([k,v])=>`- ${k}: ${v}`).join('\n');
+    blocks.push(`CREATIVE VARIATION SEED: ${variant.seed}
+Randomness level: ${variant.levelLabel}
+Use these variation directions so repeated generations do not feel identical. Keep the user's core choices unchanged.${hasGuide?' These random directions must support the user guidance, not override it.':''}
+${lines}
+Do not merely repeat these words mechanically; turn them into coherent commercial game asset design decisions.`);
+  }
+  return `
+
+---
+
+${blocks.join('\n\n')}`;
+}
+function creativeSummaryHtml(variant){
+  if(!variant) return '';
+  const rows=[];
+  if(variant.enabled){
+    rows.push(`<strong>🎲 本次随机种子：</strong>${eh(variant.seed)}`);
+    rows.push(`<strong>随机方向：</strong>${variant.directions.map(([k,v])=>eh(v)).join(' · ')}`);
+  }
+  const g=variant.guidance||{};
+  if(g.enabled){
+    rows.push(`<strong>🧭 用户引导：</strong>${eh(g.text||'')}`);
+    if(g.avoid) rows.push(`<strong>🚫 避免元素：</strong>${eh(g.avoid)}`);
+    rows.push(`<strong>引导优先级：</strong>${eh(g.priorityLabel||'')}`);
+  }
+  if(!rows.length) return '';
+  return `<div class="random-summary">${rows.join('<br>')}</div>`;
+}
+
+function getDirectToolName(mode){
+  if(mode===1) return 'SD / Midjourney / DALL-E';
+  if(mode===2) return 'NanoBanana';
+  if(mode===3) return 'ChatGPT 图像 / image2';
+  return '图像平台';
+}
+function getDirectOpenLabel(mode){
+  return mode===3?'🚀 复制并打开 ChatGPT':'🚀 复制并打开 Gemini';
+}
+function aspectHintForImage2(ratio){
+  const map={
+    '16:9':'Use a wide 16:9 landscape composition.',
+    '9:16':'Use a tall 9:16 portrait composition.',
+    '4:3':'Use a 4:3 composition.',
+    '2:3':'Use a 2:3 portrait composition.',
+    '3:4':'Use a 3:4 portrait composition.',
+    '1:1':'Use a square 1:1 composition.'
+  };
+  return map[ratio]||'';
+}
+function openCurrentPlatform(){
+  if(!currentCombinedPrompt){showToast('请先生成 Prompt');return}
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(currentCombinedPrompt).catch(()=>{});
+  if(currentMode===3){
+    window.open('https://chatgpt.com/','_blank');
+    setTimeout(()=>showToast('✅ Prompt 已复制！到 ChatGPT 图像模式粘贴即可'),500);
+  }else{
+    window.open('https://gemini.google.com/app','_blank');
+    setTimeout(()=>showToast('✅ Prompt 已复制！你也可以直接粘贴到对应平台生成'),500);
+  }
+}
+
+function resetOutput(){
+  directResultActive=false;
+  currentCombinedPrompt='';
+  combinedContent.innerHTML='';
+  parseOutput.innerHTML='';
+  $('pasteInput').value='';
+  outputResult.classList.remove('visible');
+  outputStart.style.display='block';
+  renderGuideTab();
+}
+
+function renderGuideTab(){
+  if(currentMode===0){
+    guideTab.innerHTML='<div class="step"><div class="step-num">1</div><div class="step-text"><strong>复制 Prompt</strong> — 切到「完整 Prompt」标签，一键复制</div></div><div class="step"><div class="step-num">2</div><div class="step-text"><strong>打开 Gemini</strong> — 点击下方按钮，粘贴并发送</div></div><div class="step"><div class="step-num">3</div><div class="step-text"><strong>回传 JSON</strong> — 复制 Gemini 输出，到「粘贴结果」标签解析</div></div><button class="btn btn-gemini" onclick="openGemini()" style="margin-top:16px">🚀 打开 Gemini 开始生成</button>';
+  }else if(directResultActive){
+    return;
+  }else{
+    const tool=getDirectToolName(currentMode);
+    const extraTip=currentMode===3?'image2 更适合自然语言描述；配合下方“用户引导”一起用，控制感会更强，也不需要 --ar、--style 这类 Midjourney 指令。':'你也可以按需继续微调或追加控制词。';
+    guideTab.innerHTML=`<div class="step"><div class="step-num">1</div><div class="step-text"><strong>生成 Prompt</strong> — 下方会直接输出图像生成 Prompt</div></div><div class="step"><div class="step-num">2</div><div class="step-text"><strong>复制到 ${tool}</strong> — 一键复制，粘贴到 ${tool} 生成</div></div><div class="step"><div class="step-num">3</div><div class="step-text"><strong>使用提示：</strong> ${extraTip}</div></div>`;
+  }
+}
+
+function buildPrompt(){triggerCauldronBrew();currentMode>0?buildDirectPrompt():buildWorkshopPrompt()}
+
+function buildWorkshopPrompt(){
+  const v=getFieldValuesWithLabels(),sp=currentAsset.systemPrompt(v),up=currentAsset.userPrompt(v);
+  currentCombinedPrompt=sp+'\n\n---\n\n'+up+projectBriefText(v.projectBrief,false)+creativeVariantText(v.creativeVariant,false);
+  directResultActive=true;outputStart.style.display='none';outputResult.classList.add('visible');
+  lastBuildContext={mode:MODE_LABELS[currentMode],assetId:currentAsset.id,assetName:currentAsset.name,project:v.projectBrief,values:v,variant:v.creativeVariant,prompt:currentCombinedPrompt};
+  combinedContent.innerHTML=`<div class="prompt-block prompt-combined"><div class="label">📋 完整 Prompt — 一次性粘贴到 Gemini</div><pre style="max-height:400px;overflow-y:auto">${eh(currentCombinedPrompt)}</pre></div>${projectSummaryHtml(v.projectBrief)}${creativeSummaryHtml(v.creativeVariant)}<div class="action-bar"><button class="btn btn-copy" onclick="copyPrompt()">📋 复制</button><button class="btn btn-gemini" onclick="openGemini()">🚀 打开 Gemini</button></div>${handoffActionsHtml()}`;
+  switchTab('combined');
+}
+function copyPrompt(){copyText(currentCombinedPrompt,'✅ 已复制完整 Prompt！')}
+
+function buildDirectPrompt(){
+  const v=getFieldValuesWithLabels(),isNano=currentMode===2,isImage2=currentMode===3,aid=currentAsset.id,style=v.styleDetail||v.styleLabel||v.style;
+  let prompt;
+  if(isImage2){
+    const image2Prompts={
+      character:`Create a full-body game character concept illustration of ${v.concept}. ${style}. Emphasize a strong silhouette, distinctive costume design, layered materials, expressive pose, and game-ready visual clarity. The design should feel suitable for a ${v.gameTypeLabel||v.gameType||'commercial game'}. ${aspectHintForImage2('2:3')} High detail, polished rendering, cinematic lighting, clean background support, and no watermark.`,
+      ui:`Create a polished game UI/UX mockup for ${v.uiTypeLabel||v.uiType}. ${style}. Design clear information hierarchy, readable typography, clean buttons, polished panels, and strong usability. The interface should feel production-ready for a commercial game. ${aspectHintForImage2(v.resolution||'16:9')} Use simple, legible UI labels and high visual clarity.`,
+      icon:`Create a game icon sheet containing ${parseInt(v.quantity)||6} ${v.iconTypeLabel||v.iconType} icons. ${style}. Each icon should be visually distinct, readable at small size, and stylistically consistent as a unified set. ${aspectHintForImage2('1:1')} Arrange them cleanly with enough spacing, polished rendering, and no watermark.`,
+      scene:`Create a cinematic game environment concept art of ${v.sceneTypeLabel||v.sceneType}. ${style}. Use a ${v.viewLabel||v.view} viewpoint, rich environmental storytelling, atmospheric lighting, and layered depth. The environment should feel immersive and suitable for a commercial game world. ${aspectHintForImage2('16:9')} High detail, polished composition, no watermark.`,
+      item:`Create a game item concept illustration of a ${v.rarityLabel||v.rarity} ${v.itemTypeLabel||v.itemType}. ${style}. Showcase clear material definition, appealing silhouette, readable details, and a premium game-asset presentation. ${v.rarity==='legendary'||v.rarity==='mythic'?'Add magical energy, glow, and a sense of rarity. ':'Keep the presentation clean and focused. '}${aspectHintForImage2('1:1')} Isolated presentation, polished rendering, no watermark.`,
+      vfx:`Create a game visual effect concept for ${v.vfxTypeLabel||v.vfxType}. ${style}. The effect should feel ${({light:'subtle and readable',medium:'dramatic and energetic',heavy:'powerful and explosive',ultimate:'cataclysmic and spectacular'})[v.intensity]||'dramatic and energetic'}. Emphasize motion, particles, glow, and shape readability on a clean dark background. ${aspectHintForImage2('1:1')} High clarity, no watermark.`,
+      client:`Create a polished game client visual for ${v.elementTypeLabel||v.elementType}, designed for ${v.platformLabel||v.platform}. ${style}. Focus on clear composition, strong visual appeal, and production-ready presentation suitable for a real game product. ${aspectHintForImage2(v.platform==='mobile'?'9:16':'16:9')} Clean details, polished rendering, and no watermark.`,
+      npc:`Create a game creature or NPC concept illustration for ${v.npcTypeLabel||v.npcType}. ${style}. Show distinctive anatomy, memorable silhouette, personality, and game-ready readability. The design should communicate ${v.difficultyLabel||v.difficulty} threat level clearly. ${aspectHintForImage2('3:4')} Dramatic lighting, polished rendering, no watermark.`
+    };
+    prompt=(image2Prompts[aid]||`Create a polished game asset concept illustration for ${v.concept||aid}. ${style}. Make it suitable for a commercial game, with clear subject focus, strong composition, high detail, and no watermark.`);
+  }else if(isNano){
+    const nano={
+      character:`A full-body game character concept art of ${v.concept}. ${style} Dynamic pose, detailed costume and accessories. Professional game character concept art, game-ready quality.`,
+      ui:`A game user interface design for ${v.uiTypeLabel||v.uiType} in ${v.styleDetail||v.styleLabel||v.style} style, ${v.resolution||'16:9'} aspect ratio. Clean layout, readable typography, polished gradients. Professional game UI/UX design.`,
+      icon:`A sprite sheet containing ${v.quantity||6} game ${v.iconTypeLabel||v.iconType} icons in ${v.styleDetail||v.styleLabel||v.style} style. Clean vector-like graphics, each icon clearly separated on a grid. Professional game icon set.`,
+      scene:`A game environment concept art of ${v.sceneTypeLabel||v.sceneType} in ${v.styleDetail||v.styleLabel||v.style} style, ${v.viewLabel||v.view||'top-down'} perspective. Rich environmental storytelling, atmospheric lighting, detailed textures. Cinematic and epic.`,
+      item:`A game item design: ${v.itemTypeLabel||v.itemType} in ${v.styleDetail||v.styleLabel||v.style} style, ${v.rarity||'common'} quality. ${v.rarity==='legendary'||v.rarity==='mythic'?'Glowing magical effects and particle aura. ':'Clean presentation. '}Professional game asset, 3D render quality.`,
+      vfx:`A game visual effect: ${v.vfxTypeLabel||v.vfxType} magic spell in ${v.styleDetail||v.styleLabel||v.style} style, ${v.intensity||'medium'} intensity. Dynamic particles, motion blur, glow and energy trails. Dark background.`,
+      client:`A game client UI element: ${v.elementTypeLabel||v.elementType} in ${v.styleDetail||v.styleLabel||v.style} style, designed for ${v.platformLabel||v.platform||'mobile'}. Clean composition, professional game UI design, modern aesthetic.`,
+      npc:`A game creature design: ${v.npcTypeLabel||v.npcType} in ${v.styleDetail||v.styleLabel||v.style} style. Detailed anatomy, dynamic pose, dramatic lighting. Professional game creature concept art.`
+    };
+    prompt=(nano[aid]||`A game asset: ${v.concept||''} ${style}. Professional quality game concept art.`)+' Do NOT include any watermarks, text, or UI overlays.';
+  }else{
+    const prompts={
+      character:`A full-body character design of ${v.concept}, ${style}. Intricate clothing and accessories, dynamic pose, strong silhouette. Professional game character concept art, high quality, detailed rendering, sharp focus. --ar 2:3`,
+      ui:`Game user interface design: ${v.uiTypeLabel||v.uiType}, ${style}. Clean layout, readable typography, ${v.resolution||'16:9'} aspect ratio. Professional game UI/UX concept art, high detail, sharp vector-like lines, polished gradients. --ar ${v.resolution||'16:9'}`,
+      icon:`A game asset sprite sheet containing ${parseInt(v.quantity)||6} ${v.iconTypeLabel||v.iconType} icons, ${style}. Each icon clearly separated on a grid, clean vector-like graphics, game-ready quality. Professional game icon design. --ar 1:1`,
+      scene:`Game environment concept art: ${v.sceneTypeLabel||v.sceneType}, ${style}, ${v.viewLabel||v.view} view. Rich environmental storytelling, atmospheric lighting, detailed textures. Professional game background art, cinematic composition, epic scale. --ar 16:9 --style cinematic`,
+      item:`Game item design: ${v.itemTypeLabel||v.itemType}, ${style}, ${v.rarityLabel||v.rarity} quality. Detailed craftsmanship, ${v.rarity==='legendary'||v.rarity==='mythic'?'glowing magical effects, particle aura':'clean presentation'}. Isolated on dark background. Professional game asset, 3D render quality, sharp focus. --ar 1:1 --style game-asset`,
+      vfx:`Game visual effect: ${v.vfxTypeLabel||v.vfxType} magic spell, ${style}, ${({light:'subtle',medium:'dramatic',heavy:'powerful',ultimate:'apocalyptic'})[v.intensity]||'medium'} intensity. Dynamic particles, motion blur, glow and energy trails. Dark or transparent background. Professional game VFX concept. --ar 1:1`,
+      client:`Game client UI element: ${v.elementTypeLabel||v.elementType}, ${style}, designed for ${v.platformLabel||v.platform}. Clean composition, professional game UI design, modern aesthetic, appealing visuals. --ar ${v.platform==='mobile'?'9:16':'16:9'}`,
+      npc:`Game creature/monster design: ${v.npcTypeLabel||v.npcType}, ${style}. Detailed anatomy, dynamic pose. Professional game creature concept art, texture detail, dramatic lighting. --ar 3:4 --style game-creature`
+    };
+    prompt=prompts[aid];
+  }
+  prompt+=projectBriefText(v.projectBrief,true);
+  prompt+=creativeVariantText(v.creativeVariant,true);
+  lastBuildContext={mode:MODE_LABELS[currentMode],assetId:currentAsset.id,assetName:currentAsset.name,project:v.projectBrief,values:v,variant:v.creativeVariant,prompt};
+  showDirectResult(prompt,v.creativeVariant);
+}
+
+function showDirectResult(prompt,variant){
+  const tool=getDirectToolName(currentMode);
+  const openLabel=getDirectOpenLabel(currentMode);
+  const helperTip=currentMode===3
+    ? '<strong>image2 使用建议：</strong>尽量使用自然语言完整描述主体、风格、构图和背景，并结合“用户引导”说明你想强化或避免的方向；不需要 --ar、--style 这类 Midjourney 参数。如果后续想改图，可直接上传参考图再补一句修改要求。'
+    : '<strong>推荐参数：</strong>CFG 7, Steps 30, 分辨率 1024×1024 或 1024×1536';
+  currentCombinedPrompt=prompt;
+  directResultActive=true;outputStart.style.display='none';outputResult.classList.add('visible');
+  combinedContent.innerHTML=`<div class="prompt-block prompt-combined"><div class="label">📋 图像生成 Prompt — 直接复制到 ${tool}</div><pre style="max-height:400px;overflow-y:auto">${eh(prompt)}</pre></div>${projectSummaryHtml(lastBuildContext&&lastBuildContext.project)}${creativeSummaryHtml(variant)}<div class="action-bar"><button class="btn btn-copy" onclick="copyPrompt()">📋 复制</button><button class="btn btn-gemini" onclick="openCurrentPlatform()">${openLabel}</button></div>${handoffActionsHtml()}`;
+  guideTab.innerHTML=`<div style="background:var(--bgAccent);border:1px solid var(--copyBorder);border-radius:8px;padding:14px;margin-bottom:10px"><div style="font-size:10px;color:var(--fg2);text-transform:uppercase;margin-bottom:8px">🎨 图像生成 Prompt — 直接复制到 ${tool}</div><pre style="font-size:13px;color:var(--fg);white-space:pre-wrap;line-height:1.6;margin:0">${eh(prompt)}</pre></div>${projectSummaryHtml(lastBuildContext&&lastBuildContext.project)}${creativeSummaryHtml(variant)}<div class="action-bar"><button class="btn btn-copy">📋 复制 Prompt</button><button class="btn btn-gemini">${openLabel}</button></div><div style="margin-top:10px;font-size:10px;color:var(--fg2)">${helperTip}</div>${handoffActionsHtml()}`;
+  guideTab.querySelectorAll('.btn-copy, .btn-gemini').forEach(b=>{
+    b.dataset.prompt=prompt;
+    b.onclick=function(){
+      copyText(this.dataset.prompt,'✅ Prompt 已复制！');
+      if(this.classList.contains('btn-gemini')) openCurrentPlatform();
+    }
+  });
+  document.querySelectorAll('.tabs .tab').forEach(t=>t.classList.toggle('active',t.getAttribute('onclick')==='switchTab(\'guide\')'));
+  document.querySelectorAll('[id^="tab-"]').forEach(d=>d.style.display='none');
+  guideTab.style.display='block';
+}
+
+function openGemini(){if(!currentCombinedPrompt){showToast('请先生成 Prompt');return}if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(currentCombinedPrompt).catch(()=>{});window.open('https://gemini.google.com/app','_blank');setTimeout(()=>showToast('✅ Prompt 已复制！在 Gemini 中 Cmd+V 粘贴并发送'),500)}
+
+function switchTab(tab){
+  document.querySelectorAll('.tabs .tab').forEach(t=>t.classList.toggle('active',t.getAttribute('onclick')===`switchTab('${tab}')`));
+  document.querySelectorAll('[id^="tab-"]').forEach(d=>d.style.display='none');
+  const el=$('tab-'+tab);if(el) el.style.display='block';
+  if(tab==='guide') renderGuideTab();
+}
+
+function extractJson(raw){
+  let text=raw.trim()
+    .replace(/^```json\s*/i,'')
+    .replace(/^```\s*/i,'')
+    .replace(/```$/i,'')
+    .trim();
+  const firstObj=text.indexOf('{'),lastObj=text.lastIndexOf('}');
+  const firstArr=text.indexOf('['),lastArr=text.lastIndexOf(']');
+  if(firstObj!==-1&&lastObj!==-1&&lastObj>firstObj) return text.slice(firstObj,lastObj+1);
+  if(firstArr!==-1&&lastArr!==-1&&lastArr>firstArr) return text.slice(firstArr,lastArr+1);
+  return text;
+}
+function parseResult(){
+  const raw=$('pasteInput').value.trim();
+  if(!raw){showToast('请先粘贴 JSON');return}
+  try{
+    const data=JSON.parse(extractJson(raw));
+    renderResultCard(data);
+    showToast('✅ 解析成功！');
+  }catch(e){parseOutput.innerHTML=`<div style="color:#f85149;font-size:12px;margin-top:10px">⚠️ JSON 解析失败：${eh(e.message)}<br>建议检查 Gemini 是否输出了完整 JSON，尤其是逗号、引号和括号。</div>`}
+}
+
+function t(tag,content,attrs=''){return`<${tag} ${attrs}>${content}</${tag}>`}
+function badge(text){return`<span class="asset-badge">${eh(text)}</span>`}
+function section(title,content){return`<div class="result-section"><div class="s-title">${title}</div>${content}</div>`}
+function specGrid(obj){return`<div class="spec-grid">${Object.entries(obj).map(([k,v])=>`<div class="spec-item"><div class="k">${k}</div><div class="v">${eh(v)}</div></div>`).join('')}</div>`}
+
+function renderResultCard(data){
+  let html='<div class="result-card">';
+  if(data.name&&data.attributes){
+    html+=`<h3>${eh(data.name)}</h3><div class="sub">${eh(data.title||'')} · ${eh(data.role||'')}</div>`;
+    if(data.backstory) html+=section('背景故事',`<div class="text-sm">${eh(data.backstory)}</div>`);
+    if(data.skills) html+=section('专属技能',data.skills.map(s=>`<div style="margin:4px 0"><span style="color:var(--accent)">⚔️ ${eh(s.name)}</span> <span style="color:var(--fg2);font-size:11px">${eh(s.desc)}</span></div>`).join(''));
+    if(data.attributes) html+=section('属性面板',specGrid(data.attributes));
+  }else if(data.uiName){
+    html+=`<h3>${eh(data.uiName)}</h3>`;
+    if(data.layout) html+=section('布局',`<div class="text-sm">${eh(data.layout)}</div>`);
+    if(data.colorScheme) html+=section('配色方案',`<div class="text-sm">${Object.entries(data.colorScheme).map(([k,v])=>badge(`${k}: ${v}`)).join(' ')}</div>`);
+    if(data.components) html+=section('核心组件',`<div class="text-sm">${data.components.map(c=>badge(c)).join(' ')}</div>`);
+  }else if(data.itemName){
+    html+=`<h3>${eh(data.itemName)}</h3><div class="sub">${eh(data.rarity||'')}</div>`;
+    if(data.description) html+=section('描述',`<div class="text-sm">${eh(data.description)}</div>`);
+    if(data.stats) html+=section('属性',specGrid(data.stats));
+  }else if(data.vfxName){
+    html+=`<h3>${eh(data.vfxName)}</h3><div class="sub">${eh(data.intensity||'')}</div>`;
+    if(data.timeline) html+=section('时间轴',`<div class="text-sm">${Object.entries(data.timeline).map(([k,v])=>badge(`${k}: ${v}`)).join(' ')}</div>`);
+  }else if(data.sceneName){
+    html+=`<h3>${eh(data.sceneName)}</h3>`;
+    if(data.atmosphere) html+=section('氛围',`<div class="text-sm">${eh(data.atmosphere)}</div>`);
+    if(data.keyLandmarks) html+=section('地标',`<div class="text-sm">${data.keyLandmarks.map(l=>badge(l)).join(' ')}</div>`);
+  }else{
+    html+=`<h3>${eh(data.elementName||data.name||(data.icons&&data.icons[0]&&data.icons[0].name)||'生成结果')}</h3>`;
+  }
+  if(data.imagePrompt){
+    html+=section('🎨 图像生成 Prompt',`<div class="prompt-block"><pre class="code-sm">${eh(data.imagePrompt)}</pre></div><button class="btn btn-sm btn-copy" style="margin-top:6px">📋 复制图像 Prompt</button>`);
+  }
+  if(data.icons){
+    html+=section('图标列表',data.icons.map(i=>`<div style="margin:6px 0;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px"><span style="color:var(--accent);font-weight:600">${eh(i.name)}</span><span style="color:var(--fg2);font-size:11px;margin-left:6px">${eh(i.visual||'')}</span>${i.imagePrompt?`<div style="margin-top:4px"><code class="code-sm">${eh(i.imagePrompt)}</code></div>`:''}</div>`).join(''));
+  }
+  html+='</div>';
+  parseOutput.innerHTML=html;
+  if(data.imagePrompt){
+    const cb=parseOutput.querySelector('.btn-copy');
+    if(cb){cb.dataset.prompt=data.imagePrompt;cb.onclick=function(){copyText(this.dataset.prompt,'✅ 图像 Prompt 已复制！')}}
+    setTimeout(()=>showToast('💡 复制「图像 Prompt」到 SD/Midjourney 生成视觉素材'),500);
+  }
+}
+
+
+
+const POTION_COLORS=['#7dd3fc','#a78bfa','#34d399','#f8c76b','#fb7185','#f97316','#22d3ee','#c084fc'];
+function magicColorFromValue(value){
+  const str=String(value||'magic');
+  let h=0;
+  for(let i=0;i<str.length;i++) h=(h*31+str.charCodeAt(i))>>>0;
+  return POTION_COLORS[h%POTION_COLORS.length];
+}
+function addPotionIngredient(value){
+  const trail=document.getElementById('ingredientTrail');
+  const scene=document.getElementById('magicCauldronScene');
+  if(!trail||!scene) return;
+  const drop=document.createElement('span');
+  drop.className='ingredient-drop';
+  drop.style.setProperty('--dropColor',magicColorFromValue(value));
+  drop.style.right=(56+Math.random()*150)+'px';
+  drop.style.top=(12+Math.random()*60)+'px';
+  trail.appendChild(drop);
+  scene.classList.add('active');
+  setTimeout(()=>drop.remove(),980);
+}
+function triggerCauldronBrew(){
+  const wrap=document.getElementById('cauldronWrap');
+  if(!wrap) return;
+  wrap.classList.remove('brewing');
+  document.body.classList.remove('prompt-brewing');
+  void wrap.offsetWidth;
+  wrap.classList.add('brewing');
+  document.body.classList.add('prompt-brewing');
+  for(let i=0;i<5;i++) setTimeout(()=>addPotionIngredient('brew-'+i+'-'+Date.now()),i*80);
+  setTimeout(()=>{wrap.classList.remove('brewing');document.body.classList.remove('prompt-brewing')},1250);
+}
+function bindAlchemyInteractions(){
+  let timer=null;
+  document.addEventListener('change',e=>{
+    if(e.target&&e.target.matches('select,input,textarea')) addPotionIngredient(e.target.value||e.target.id);
+  },true);
+  document.addEventListener('input',e=>{
+    if(!(e.target&&e.target.matches('textarea,input'))) return;
+    clearTimeout(timer);
+    timer=setTimeout(()=>addPotionIngredient(e.target.value||e.target.id),420);
+  },true);
+  document.addEventListener('click',e=>{
+    const btn=e.target.closest('button,.asset-card,.guide-chip');
+    if(!btn) return;
+    if(btn.id==='buildBtn'||btn.closest('#buildBtn')) return;
+    addPotionIngredient(btn.textContent||btn.className);
+  },true);
+}
+
+function setTheme(theme){
+  const finalTheme=theme==='ember'?'ember':'aurora';
+  document.body.setAttribute('data-theme',finalTheme);
+  document.querySelectorAll('[data-theme-btn]').forEach(btn=>btn.classList.toggle('active',btn.dataset.themeBtn===finalTheme));
+  try{localStorage.setItem('agaws-theme',finalTheme)}catch(e){}
+}
+function initTheme(){
+  let saved='aurora';
+  try{saved=localStorage.getItem('agaws-theme')||'aurora'}catch(e){}
+  setTheme(saved);
+}
+
+document.addEventListener('touchstart',()=>{},!0);
+initTheme();
+bindAlchemyInteractions();
+init();
+</script></body></html>

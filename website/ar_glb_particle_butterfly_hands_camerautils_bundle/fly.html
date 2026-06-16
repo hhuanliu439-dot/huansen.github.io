@@ -1,0 +1,1125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GLB Particle Butterfly - Hands Camera Utils (Optimized)</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #02040a;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #cameraVideo {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      transform: scaleX(-1);
+      filter: contrast(1.06) saturate(0.95) brightness(0.78);
+      z-index: 0;
+    }
+
+    #stage {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+      pointer-events: auto;
+    }
+
+    .shade {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 50% 38%, rgba(40, 100, 170, .16), rgba(0,0,0,0) 42%),
+        radial-gradient(circle at center, rgba(0,0,0,0) 0%, rgba(0,0,0,.42) 78%, rgba(0,0,0,.72) 100%);
+      mix-blend-mode: normal;
+    }
+
+    .hud {
+      position: fixed;
+      left: 20px;
+      top: 18px;
+      z-index: 5;
+      color: rgba(225,245,255,.86);
+      font-size: 12px;
+      line-height: 1.8;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      pointer-events: none;
+      user-select: none;
+      text-shadow: 0 0 18px rgba(40, 220, 255, .35);
+      mix-blend-mode: screen;
+    }
+
+    .tip {
+      position: fixed;
+      left: 20px;
+      bottom: 18px;
+      z-index: 5;
+      color: rgba(225,245,255,.68);
+      font-size: 12px;
+      letter-spacing: .06em;
+      pointer-events: none;
+      user-select: none;
+      text-shadow: 0 0 16px rgba(40, 220, 255, .3);
+      mix-blend-mode: screen;
+    }
+
+    button {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      z-index: 6;
+      transform: translate(-50%, -50%);
+      appearance: none;
+      border: 1px solid rgba(150,230,255,.34);
+      background: rgba(10,35,60,.42);
+      color: rgba(235,250,255,.96);
+      padding: 15px 24px;
+      border-radius: 999px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 0 50px rgba(60,210,255,.18);
+    }
+
+    button:hover {
+      background: rgba(25,70,110,.48);
+    }
+  
+    .handDot {
+      position: fixed;
+      width: 18px;
+      height: 18px;
+      margin-left: -9px;
+      margin-top: -9px;
+      border-radius: 50%;
+      border: 1px solid rgba(180,245,255,.9);
+      box-shadow: 0 0 18px rgba(80,220,255,.8), inset 0 0 10px rgba(120,240,255,.45);
+      background: rgba(80,220,255,.22);
+      z-index: 7;
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(.8);
+      transition: opacity .12s linear, transform .12s linear;
+    }
+  </style>
+</head>
+<body>
+  <video id="cameraVideo" autoplay playsinline muted></video>
+  <div class="shade"></div>
+  <canvas id="stage"></canvas>
+
+  <div class="hud">
+    <div>GLB Particle Butterfly - Hands Camera Utils</div>
+    <div id="debug">waiting...</div>
+  </div>
+
+  <div class="tip">
+    Hands Camera Utils 优化版｜增强空间远近缩放与流体力学振翅
+  </div>
+
+  <div id="handDot" class="handDot"></div>
+
+  <button id="startBtn">Enable Camera + Load GLB</button>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+    const canvas = document.getElementById('stage');
+    const video = document.getElementById('cameraVideo');
+    const startBtn = document.getElementById('startBtn');
+    const debugEl = document.getElementById('debug');
+    const handDot = document.getElementById('handDot');
+
+    const CONFIG = {
+      modelPath: './butterfly.glb',
+      maxParticles: 62000,
+      particleSize: 2.35,
+      modelScale: 1.65,
+      mirrorPreview: true,
+      scatterDistance: 0.0,
+      surfaceFloat: 0.009,
+      followStrength: 0.13,
+      cameraZ: 7.2
+    };
+
+    let scene, camera, renderer, controls;
+    let particleGroup;
+    let particlePoints;
+    let particleGeometry;
+    let particleMaterial;
+
+    let basePositions;
+    let currentPositions;
+    let scatterDirections;
+    let seeds;
+    let sizes;
+    let colors;
+    let particleCount = 0;
+
+    let hands;
+    let mpCamera;
+    let started = false;
+
+    const clock = new THREE.Clock();
+
+    const gesture = {
+      found: false,
+      x: 0.5,
+      y: 0.56,
+      sx: 0.5,
+      sy: 0.56,
+      open: 0,
+      pinch: 0,
+      velocity: 0,
+      lastX: 0.5,
+      lastY: 0.56,
+      palmSize: 0.08,
+      depth: 0.35,
+      zAvg: 0,
+      stillness: 0,
+      landBlend: 0,
+      progressTarget: 0,
+      progress: 0,
+      mode: 'idle',
+      lostFrames: 0,
+      detectCount: 0
+    };
+
+    const butterfly = {
+      target: new THREE.Vector3(0, 0, 0),
+      position: new THREE.Vector3(0, 0, 0),
+      velocity: new THREE.Vector3(),
+      scale: 1,
+      yaw: 0,
+      pitch: 0,
+      roll: 0,
+      spin: 0,
+      desiredYaw: 0,
+      desiredPitch: 0,
+      desiredRoll: 0,
+      scaleHint: 0.92,
+      flapPhase: 0,
+      flapBoost: 0
+    };
+
+    const person = {
+      found: false,
+      cx: 0.5,
+      cy: 0.42,
+      faceArea: 0.0,
+      depth: 0.36
+    };
+
+    function clamp(v, a, b) {
+      return Math.max(a, Math.min(b, v));
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function smoothstep(a, b, x) {
+      const t = clamp((x - a) / (b - a), 0, 1);
+      return t * t * (3 - 2 * t);
+    }
+
+    function initThree() {
+      scene = new THREE.Scene();
+
+      camera = new THREE.PerspectiveCamera(
+        42,
+        window.innerWidth / window.innerHeight,
+        0.01,
+        100
+      );
+      camera.position.set(0, 0, CONFIG.cameraZ);
+
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        alpha: true,
+        antialias: true,
+        powerPreference: 'high-performance'
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.12;
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.enablePan = false;
+      controls.target.set(0, 0, 0);
+
+      particleGroup = new THREE.Group();
+      scene.add(particleGroup);
+
+      const ambient = new THREE.AmbientLight(0x88bbee, 0.65);
+      scene.add(ambient);
+
+      const key = new THREE.DirectionalLight(0x99ddff, 1.2);
+      key.position.set(2, 3, 4);
+      scene.add(key);
+
+      window.addEventListener('resize', onResize);
+    }
+
+    function createParticleMaterial() {
+      return new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        depthTest: true,
+        blending: THREE.AdditiveBlending,
+        uniforms: {
+          uTime: { value: 0 },
+          uOpacity: { value: 1 },
+          uProgress: { value: 0 },
+          uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, 2) },
+          uBaseSize: { value: CONFIG.particleSize }
+        },
+        vertexShader: `
+          attribute vec3 aColor;
+          attribute float aSize;
+          varying vec3 vColor;
+          varying float vAlpha;
+
+          uniform float uBaseSize;
+          uniform float uPixelRatio;
+          uniform float uProgress;
+
+          void main() {
+            vColor = aColor;
+
+            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+
+            float distanceScale = 1.0 / max(0.35, -mvPosition.z);
+            float dissolveSize = mix(1.0, 0.72, uProgress);
+
+            gl_PointSize = aSize * uBaseSize * uPixelRatio * distanceScale * 4.9 * dissolveSize;
+            gl_Position = projectionMatrix * mvPosition;
+
+            vAlpha = mix(1.0, 0.38, uProgress);
+          }
+        `,
+        fragmentShader: `
+          precision highp float;
+
+          varying vec3 vColor;
+          varying float vAlpha;
+
+          uniform float uTime;
+          uniform float uOpacity;
+          uniform float uProgress;
+
+          void main() {
+            vec2 uv = gl_PointCoord - vec2(0.5);
+            float d = length(uv);
+
+            // 更明显的中心亮点 + 外圈软光晕
+            float core = smoothstep(0.52, 0.00, d);
+            float inner = smoothstep(0.34, 0.00, d);
+            float halo = smoothstep(0.72, 0.12, d);
+
+            float alpha = (core * 0.72 + inner * 0.38 + halo * 0.18) * vAlpha * uOpacity;
+
+            if (alpha < 0.01) discard;
+
+            vec3 col = vColor;
+            col += inner * vec3(0.14, 0.34, 0.58);
+            col += halo * vec3(0.08, 0.20, 0.36);
+            col *= 1.02 + (1.0 - uProgress) * 0.20;
+
+            gl_FragColor = vec4(col, alpha);
+          }
+        `
+      });
+    }
+
+    async function loadGLBAsParticles() {
+      const loader = new GLTFLoader();
+
+      const gltf = await new Promise((resolve, reject) => {
+        loader.load(CONFIG.modelPath, resolve, undefined, reject);
+      });
+
+      const root = gltf.scene;
+      root.updateMatrixWorld(true);
+
+      const triangles = [];
+      const bbox = new THREE.Box3().setFromObject(root);
+      const center = bbox.getCenter(new THREE.Vector3());
+      const size = bbox.getSize(new THREE.Vector3());
+      const maxDim = Math.max(size.x, size.y, size.z) || 1;
+      const normalizeScale = CONFIG.modelScale / maxDim;
+
+      const textureCanvasCache = new WeakMap();
+
+      function getTextureSampler(map) {
+        if (!map || !map.image) return null;
+
+        const img = map.image;
+
+        if (textureCanvasCache.has(img)) {
+          return textureCanvasCache.get(img);
+        }
+
+        const texCanvas = document.createElement('canvas');
+        const w = img.width || img.videoWidth || 1;
+        const h = img.height || img.videoHeight || 1;
+        texCanvas.width = w;
+        texCanvas.height = h;
+
+        const texCtx = texCanvas.getContext('2d', { willReadFrequently: true });
+        texCtx.drawImage(img, 0, 0, w, h);
+        const data = texCtx.getImageData(0, 0, w, h).data;
+
+        const sampler = {
+          width: w,
+          height: h,
+          data,
+          sample(uv) {
+            let u = uv.x % 1;
+            let v = uv.y % 1;
+            if (u < 0) u += 1;
+            if (v < 0) v += 1;
+
+            const x = Math.min(w - 1, Math.max(0, Math.floor(u * (w - 1))));
+            const y = Math.min(h - 1, Math.max(0, Math.floor((1 - v) * (h - 1))));
+            const i = (y * w + x) * 4;
+
+            return new THREE.Color(
+              data[i] / 255,
+              data[i + 1] / 255,
+              data[i + 2] / 255
+            );
+          }
+        };
+
+        textureCanvasCache.set(img, sampler);
+        return sampler;
+      }
+
+      root.traverse(obj => {
+        if (!obj.isMesh || !obj.geometry) return;
+
+        const material = Array.isArray(obj.material) ? obj.material[0] : obj.material;
+        const geometry = obj.geometry.clone();
+        geometry.applyMatrix4(obj.matrixWorld);
+
+        const pos = geometry.attributes.position;
+        if (!pos) return;
+
+        const idx = geometry.index;
+        const normalMatrix = new THREE.Matrix3().getNormalMatrix(obj.matrixWorld);
+
+        const normalAttr = geometry.attributes.normal;
+        const uvAttr = obj.geometry.attributes.uv || geometry.attributes.uv;
+        const colorAttr = obj.geometry.attributes.color || geometry.attributes.color;
+
+        const matColor = material && material.color ? material.color.clone() : new THREE.Color(1, 1, 1);
+        const texSampler = material && material.map ? getTextureSampler(material.map) : null;
+
+        function getVertex(i) {
+          return new THREE.Vector3(
+            pos.getX(i),
+            pos.getY(i),
+            pos.getZ(i)
+          ).sub(center).multiplyScalar(normalizeScale);
+        }
+
+        function getNormal(i) {
+          if (normalAttr) {
+            return new THREE.Vector3(
+              normalAttr.getX(i),
+              normalAttr.getY(i),
+              normalAttr.getZ(i)
+            ).applyMatrix3(normalMatrix).normalize();
+          }
+          return null;
+        }
+
+        function getUV(i) {
+          if (!uvAttr) return null;
+          return new THREE.Vector2(
+            uvAttr.getX(i),
+            uvAttr.getY(i)
+          );
+        }
+
+        function getVertexColor(i) {
+          if (!colorAttr) return null;
+          return new THREE.Color(
+            colorAttr.getX(i),
+            colorAttr.getY(i),
+            colorAttr.getZ(i)
+          );
+        }
+
+        const triCount = idx ? idx.count / 3 : pos.count / 3;
+
+        for (let t = 0; t < triCount; t++) {
+          const ia = idx ? idx.getX(t * 3) : t * 3;
+          const ib = idx ? idx.getX(t * 3 + 1) : t * 3 + 1;
+          const ic = idx ? idx.getX(t * 3 + 2) : t * 3 + 2;
+
+          const a = getVertex(ia);
+          const b = getVertex(ib);
+          const c = getVertex(ic);
+
+          const ab = b.clone().sub(a);
+          const ac = c.clone().sub(a);
+          const n = ab.clone().cross(ac);
+          const area = n.length() * 0.5;
+
+          if (area <= 1e-8) continue;
+
+          let normal = n.normalize();
+          const na = getNormal(ia);
+          const nb = getNormal(ib);
+          const nc = getNormal(ic);
+          if (na && nb && nc) {
+            normal = na.add(nb).add(nc).normalize();
+          }
+
+          triangles.push({
+            a, b, c, normal, area,
+            uvA: getUV(ia),
+            uvB: getUV(ib),
+            uvC: getUV(ic),
+            colA: getVertexColor(ia),
+            colB: getVertexColor(ib),
+            colC: getVertexColor(ic),
+            matColor,
+            texSampler
+          });
+        }
+      });
+
+      if (!triangles.length) {
+        throw new Error('GLB 里没有可采样的三角面。');
+      }
+
+      const totalArea = triangles.reduce((s, t) => s + t.area, 0);
+      const cumulative = [];
+      let acc = 0;
+
+      for (const tri of triangles) {
+        acc += tri.area / totalArea;
+        cumulative.push(acc);
+      }
+
+      particleCount = Math.min(CONFIG.maxParticles, Math.max(18000, triangles.length * 18));
+
+      basePositions = new Float32Array(particleCount * 3);
+      currentPositions = new Float32Array(particleCount * 3);
+      scatterDirections = new Float32Array(particleCount * 3);
+      colors = new Float32Array(particleCount * 3);
+      sizes = new Float32Array(particleCount);
+      seeds = new Float32Array(particleCount);
+
+      const sampledColor = new THREE.Color();
+      const texColor = new THREE.Color();
+      const uv = new THREE.Vector2();
+
+      for (let i = 0; i < particleCount; i++) {
+        const r = Math.random();
+        let lo = 0;
+        let hi = cumulative.length - 1;
+
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1;
+          if (cumulative[mid] < r) lo = mid + 1;
+          else hi = mid;
+        }
+
+        const tri = triangles[lo];
+
+        let r1 = Math.random();
+        let r2 = Math.random();
+        if (r1 + r2 > 1) {
+          r1 = 1 - r1;
+          r2 = 1 - r2;
+        }
+
+        const w = 1 - r1 - r2;
+
+        const p = tri.a.clone()
+          .multiplyScalar(w)
+          .add(tri.b.clone().multiplyScalar(r1))
+          .add(tri.c.clone().multiplyScalar(r2));
+
+        const outward = p.clone().normalize().multiplyScalar(0.55)
+          .add(tri.normal.clone().multiplyScalar(0.95))
+          .add(new THREE.Vector3(
+            (Math.random() - 0.5) * 0.45,
+            (Math.random() - 0.5) * 0.45,
+            (Math.random() - 0.5) * 0.45
+          ))
+          .normalize();
+
+        const idx3 = i * 3;
+        basePositions[idx3] = p.x;
+        basePositions[idx3 + 1] = p.y;
+        basePositions[idx3 + 2] = p.z;
+
+        currentPositions[idx3] = p.x;
+        currentPositions[idx3 + 1] = p.y;
+        currentPositions[idx3 + 2] = p.z;
+
+        scatterDirections[idx3] = outward.x;
+        scatterDirections[idx3 + 1] = outward.y;
+        scatterDirections[idx3 + 2] = outward.z;
+
+        sampledColor.copy(tri.matColor);
+
+        if (tri.texSampler && tri.uvA && tri.uvB && tri.uvC) {
+          uv.set(0, 0)
+            .add(tri.uvA.clone().multiplyScalar(w))
+            .add(tri.uvB.clone().multiplyScalar(r1))
+            .add(tri.uvC.clone().multiplyScalar(r2));
+
+          texColor.copy(tri.texSampler.sample(uv));
+          sampledColor.multiply(texColor);
+        } else if (tri.colA && tri.colB && tri.colC) {
+          sampledColor.setRGB(
+            tri.colA.r * w + tri.colB.r * r1 + tri.colC.r * r2,
+            tri.colA.g * w + tri.colB.g * r1 + tri.colC.g * r2,
+            tri.colA.b * w + tri.colB.b * r1 + tri.colC.b * r2
+          );
+        }
+
+        // 保留原材质色，同时加一点发光提亮和微小随机变化，让粒子更漂亮。
+        const brighten = 1.05 + Math.random() * 0.18;
+        sampledColor.multiplyScalar(brighten);
+        sampledColor.r = Math.min(1, sampledColor.r);
+        sampledColor.g = Math.min(1, sampledColor.g);
+        sampledColor.b = Math.min(1, sampledColor.b);
+
+        colors[idx3] = sampledColor.r;
+        colors[idx3 + 1] = sampledColor.g;
+        colors[idx3 + 2] = sampledColor.b;
+
+        sizes[i] = 0.36 + Math.random() * 0.72;
+        seeds[i] = Math.random() * 1000;
+      }
+
+      particleGeometry = new THREE.BufferGeometry();
+      particleGeometry.setAttribute('position', new THREE.BufferAttribute(currentPositions, 3));
+      particleGeometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3));
+      particleGeometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+
+      particleMaterial = createParticleMaterial();
+      particlePoints = new THREE.Points(particleGeometry, particleMaterial);
+      particleGroup.add(particlePoints);
+
+      debugEl.textContent = `loaded ${particleCount} material-colored particles`;
+    }
+
+    async function startCameraAndHands() {
+      // 先手动申请摄像头，确保浏览器权限和 video 画面都正常。
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      });
+
+      video.srcObject = stream;
+      await video.play();
+
+      if (!window.Hands) {
+        throw new Error('MediaPipe Hands 没有加载成功，请检查网络/CDN。');
+      }
+
+      hands = new window.Hands({
+        locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+      });
+
+      hands.setOptions({
+        maxNumHands: 2,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.25,
+        minTrackingConfidence: 0.25,
+        selfieMode: true
+      });
+
+      hands.onResults(onHandsResults);
+
+      await startMediapipeCamera();
+
+      debugEl.textContent = 'camera started · show your open palm';
+    }
+
+    async function startMediapipeCamera() {
+      if (!window.Camera) {
+        throw new Error('MediaPipe Camera Utils 没有加载成功，请检查网络/CDN。');
+      }
+
+      mpCamera = new window.Camera(video, {
+        width: 1280,
+        height: 720,
+        onFrame: async () => {
+          if (!hands || video.readyState < 2) return;
+          try {
+            await hands.send({ image: video });
+          } catch (err) {
+            console.warn('hands.send failed', err);
+          }
+        }
+      });
+
+      await mpCamera.start();
+    }
+
+    function onHandsResults(results) {
+      const allHands = results.multiHandLandmarks || [];
+
+      if (!allHands.length) {
+        gesture.lostFrames++;
+        gesture.found = false;
+        gesture.open = lerp(gesture.open, 0, 0.06);
+        gesture.pinch = lerp(gesture.pinch, 0, 0.06);
+        gesture.velocity *= 0.92;
+        gesture.progressTarget = 0;
+        gesture.stillness = lerp(gesture.stillness, 0, 0.08);
+        gesture.landBlend = lerp(gesture.landBlend, 0, 0.08);
+        gesture.mode = 'no hand';
+
+        handDot.style.opacity = '0';
+        handDot.style.transform = 'scale(.75)';
+
+        return;
+      }
+
+      gesture.lostFrames = 0;
+      gesture.detectCount++;
+
+      function lxFrom(lm, i) {
+        return lm[i].x;
+      }
+
+      function lyFrom(lm, i) {
+        return lm[i].y;
+      }
+
+      // 选择画面中面积最大的一只手。
+      let best = allHands[0];
+      let bestScore = -1;
+
+      for (const lm of allHands) {
+        let minX = 1, minY = 1, maxX = 0, maxY = 0;
+
+        for (let i = 0; i < lm.length; i++) {
+          const x = lxFrom(lm, i);
+          const y = lyFrom(lm, i);
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+
+        const area = Math.max(0, maxX - minX) * Math.max(0, maxY - minY);
+        if (area > bestScore) {
+          bestScore = area;
+          best = lm;
+        }
+      }
+
+      const lm = best;
+
+      function lx(i) { return lxFrom(lm, i); }
+      function ly(i) { return lyFrom(lm, i); }
+      function lz(i) { return lm[i].z || 0; }
+
+      const palmIds = [0, 5, 9, 13, 17];
+      let px = 0;
+      let py = 0;
+      let pz = 0;
+
+      for (const id of palmIds) {
+        px += lx(id);
+        py += ly(id);
+        pz += lz(id);
+      }
+
+      px /= palmIds.length;
+      py /= palmIds.length;
+      pz /= palmIds.length;
+
+      gesture.lastX = gesture.x;
+      gesture.lastY = gesture.y;
+
+      gesture.x = clamp(px, 0.03, 0.97);
+      gesture.y = clamp(py, 0.04, 0.96);
+
+      gesture.sx = lerp(gesture.sx, gesture.x, 0.34);
+      gesture.sy = lerp(gesture.sy, gesture.y, 0.34);
+
+      gesture.velocity = Math.hypot(gesture.x - gesture.lastX, gesture.y - gesture.lastY);
+
+      const wrist = new THREE.Vector2(lx(0), ly(0));
+      const middleMcp = new THREE.Vector2(lx(9), ly(9));
+      const palmSize = wrist.distanceTo(middleMcp) || 0.08;
+      gesture.palmSize = lerp(gesture.palmSize, palmSize, 0.32);
+
+      const tips = [8, 12, 16, 20];
+      let fingerLen = 0;
+
+      for (const tip of tips) {
+        fingerLen += wrist.distanceTo(new THREE.Vector2(lx(tip), ly(tip)));
+      }
+
+      fingerLen /= tips.length;
+
+      const openScore = clamp((fingerLen / palmSize - 1.28) / 0.90, 0, 1);
+      const thumbTip = new THREE.Vector2(lx(4), ly(4));
+      const indexTip = new THREE.Vector2(lx(8), ly(8));
+      const pinchDistance = thumbTip.distanceTo(indexTip) / palmSize;
+      const pinchScore = 1 - smoothstep(0.28, 0.76, pinchDistance);
+
+      gesture.open = lerp(gesture.open, openScore, 0.28);
+      gesture.pinch = lerp(gesture.pinch, pinchScore, 0.32);
+      gesture.found = true;
+
+      // 【优化计算空间深度】通过手掌在画面中的比例大小估算深度
+      const sizeDepth = clamp((gesture.palmSize - 0.04) / 0.16, 0, 1);
+      gesture.depth = lerp(gesture.depth, sizeDepth, 0.18);
+      gesture.zAvg = lerp(gesture.zAvg, pz, 0.18);
+
+      const stableNow = gesture.velocity < 0.012 ? 1 : 0;
+      gesture.stillness = lerp(gesture.stillness, stableNow, stableNow ? 0.12 : 0.18);
+
+      const landingTarget = gesture.open > 0.46 && gesture.stillness > 0.72 ? 1 : 0;
+      gesture.landBlend = lerp(gesture.landBlend, landingTarget, landingTarget ? 0.08 : 0.12);
+
+      gesture.progressTarget = 0;
+
+      gesture.mode = gesture.landBlend > 0.72
+        ? 'landed on hand'
+        : 'follow hand';
+
+      handDot.style.left = `${gesture.sx * window.innerWidth}px`;
+      handDot.style.top = `${gesture.sy * window.innerHeight}px`;
+      handDot.style.opacity = '1';
+      handDot.style.transform = `scale(${1 + gesture.open * 0.45})`;
+    }
+
+    function screenToWorld(nx, ny, zPlane = 0) {
+      const ndc = new THREE.Vector3(
+        nx * 2 - 1,
+        -(ny * 2 - 1),
+        0.5
+      );
+
+      ndc.unproject(camera);
+
+      const dir = ndc.sub(camera.position).normalize();
+      const distance = (zPlane - camera.position.z) / dir.z;
+
+      return camera.position.clone().add(dir.multiplyScalar(distance));
+    }
+
+    // 【核心优化】手势追踪与远近深度目标更新
+    function updateGestureTarget(dt, time) {
+      const sceneDepth = gesture.found ? gesture.depth : 0.34;
+
+      if (gesture.found) {
+        // 扩展 Z 轴空间：手越靠近，Z 轴拉近得越明显
+        const zPlane = lerp(-2.5, 3.5, sceneDepth);
+        const handYOffset = lerp(0.035, 0.015, gesture.landBlend);
+        const target = screenToWorld(gesture.sx, gesture.sy - handYOffset, zPlane);
+
+        if (gesture.landBlend > 0.02) {
+          target.y -= gesture.landBlend * 0.08;
+          target.z += gesture.landBlend * 0.08;
+        }
+
+        butterfly.target.copy(target);
+      } else {
+        const fallbackX = Math.sin(time * 0.22) * 0.38;
+        const fallbackY = Math.cos(time * 0.18) * 0.16;
+        const zPlane = lerp(-0.25, 1.05, 0.34);
+
+        butterfly.target.set(
+          fallbackX + Math.sin(time * 0.22) * 0.12,
+          fallbackY + Math.cos(time * 0.18) * 0.08,
+          zPlane * 0.25
+        );
+      }
+
+      const pull = gesture.found
+        ? lerp(0.18, 0.42, 1 - gesture.landBlend)
+        : 0.045;
+
+      butterfly.velocity.x += (butterfly.target.x - butterfly.position.x) * pull;
+      butterfly.velocity.y += (butterfly.target.y - butterfly.position.y) * pull;
+      butterfly.velocity.z += (butterfly.target.z - butterfly.position.z) * pull;
+
+      butterfly.velocity.multiplyScalar(
+        gesture.found
+          ? lerp(0.62, 0.46, 1 - gesture.landBlend)
+          : 0.86
+      );
+
+      butterfly.position.add(butterfly.velocity.clone().multiplyScalar(dt * 1.18));
+      particleGroup.position.copy(butterfly.position);
+
+      butterfly.desiredYaw = clamp(
+        butterfly.velocity.x * 1.25 + butterfly.velocity.z * 0.55,
+        -0.95,
+        0.95
+      );
+
+      // 增加翅膀拍击引起身体晃动的物理代偿
+      const flapPitchWobble = Math.cos(butterfly.flapPhase) * (0.06 + butterfly.flapBoost * 0.08);
+      butterfly.desiredPitch = clamp(
+        -butterfly.velocity.y * 0.85 + Math.sin(time * 0.9) * 0.03 + flapPitchWobble,
+        -0.42,
+        0.42
+      );
+
+      butterfly.desiredRoll = clamp(
+        -butterfly.velocity.x * 0.95,
+        -0.65,
+        0.65
+      );
+
+      butterfly.yaw = lerp(butterfly.yaw, butterfly.desiredYaw, 0.18);
+      butterfly.pitch = lerp(butterfly.pitch, butterfly.desiredPitch, 0.15);
+      butterfly.roll = lerp(butterfly.roll, butterfly.desiredRoll, 0.18);
+
+      particleGroup.rotation.set(
+        butterfly.pitch,
+        butterfly.yaw,
+        butterfly.roll
+      );
+
+      // 扩大缩放空间：手靠得越近，模型越大
+      const depthScale = lerp(0.4, 2.5, sceneDepth);
+      butterfly.scaleHint = depthScale * lerp(1.0, 0.93, gesture.landBlend);
+      butterfly.scale = lerp(butterfly.scale, butterfly.scaleHint, 0.12);
+      particleGroup.scale.setScalar(butterfly.scale);
+    }
+
+    // 【核心优化】流体力学真实振翅计算
+    function updateParticles(dt, time) {
+      if (!particleGeometry || !particleMaterial) return;
+
+      gesture.progress = 0;
+      const pos = particleGeometry.attributes.position.array;
+
+      const travelSpeed = butterfly.velocity.length();
+      const motionBoost = clamp(gesture.velocity * 22.0 + travelSpeed * 0.95, 0, 1);
+
+      const landedMix = gesture.landBlend;
+      const flapTarget = lerp(motionBoost * 1.28, 0.12, landedMix);
+      butterfly.flapBoost = lerp(butterfly.flapBoost, flapTarget, 0.18);
+
+      const flapRate = lerp(2.0, 8.0 + butterfly.flapBoost * 7.8, 1 - landedMix);
+      butterfly.flapPhase += dt * flapRate;
+
+      for (let i = 0; i < particleCount; i++) {
+        const idx3 = i * 3;
+
+        const bx = basePositions[idx3];
+        const by = basePositions[idx3 + 1];
+        const bz = basePositions[idx3 + 2];
+        const seed = seeds[i];
+
+        const absX = Math.abs(bx);
+        const wingSign = bx >= 0.0 ? 1.0 : -1.0;
+
+        const wingMask = smoothstep(0.07, 0.30, absX);
+        const spanMask = smoothstep(0.12, 1.05, absX);
+
+        const upperMask = wingMask * smoothstep(-0.02, 0.18, by);
+        const lowerMask = wingMask * smoothstep(-0.26, 0.02, -by);
+
+        const rootStiff = 1.0 - spanMask * 0.92;
+        const tipLag = spanMask * 0.34;
+
+        const sidePhase = wingSign > 0.0 ? 0.06 : -0.06;
+        const upperPhase = butterfly.flapPhase + sidePhase - tipLag - seed * 0.002;
+        const lowerPhase = butterfly.flapPhase - 0.38 - sidePhase * 0.65 - tipLag * 1.15 - seed * 0.0025;
+
+        const rawUpper = Math.sin(upperPhase);
+        const rawLower = Math.sin(lowerPhase);
+
+        // 修改不对称波形：向上延缓（滑翔），向下极快劈打（爆发升力）
+        const upperBeat = rawUpper >= 0
+          ? Math.pow(rawUpper, 0.35)
+          : -Math.pow(-rawUpper, 2.50);
+
+        const lowerBeat = rawLower >= 0
+          ? Math.pow(rawLower, 0.45)
+          : -Math.pow(-rawLower, 2.20);
+
+        // 增大振翅极致跨度幅度
+        const upperAngle = (0.15 + (upperBeat * 0.75 + 0.75) * 0.85) * upperMask * (1 - rootStiff * 0.35);
+        const lowerAngle = (0.05 + (lowerBeat * 0.70 + 0.70) * 0.60) * lowerMask * (1 - rootStiff * 0.25);
+
+        const angle = wingSign * (upperAngle + lowerAngle);
+        const ca = Math.cos(angle);
+        const sa = Math.sin(angle);
+
+        const hingeX = wingSign * 0.090;
+        const relX = bx - hingeX;
+
+        let fx = hingeX + relX * ca + bz * sa;
+        let fz = -relX * sa + bz * ca;
+
+        const openGap = 0.048 + spanMask * 0.086 + landedMix * 0.014;
+        fx += wingSign * openGap * wingMask;
+
+        const minGap = 0.025 + spanMask * 0.050;
+        if (wingMask > 0.02) {
+          fx = wingSign * Math.max(Math.abs(fx), minGap);
+        }
+
+        const edgeFlex =
+          Math.sin(butterfly.flapPhase * 1.08 + seed * 0.03) *
+          spanMask *
+          (0.010 + butterfly.flapBoost * 0.012) *
+          (1 - landedMix * 0.55);
+
+        fx += wingSign * edgeFlex;
+
+        let fy = by;
+
+        fy += upperMask * upperBeat * 0.054;
+        fy += lowerMask * lowerBeat * 0.032;
+
+        fz += upperMask * upperBeat * 0.105;
+        fz += lowerMask * lowerBeat * 0.060;
+
+        const flapMix = wingMask;
+        const baseX = bx * (1.0 - flapMix) + fx * flapMix;
+        const baseY = by * (1.0 - flapMix) + fy * flapMix;
+        const baseZ = bz * (1.0 - flapMix) + fz * flapMix;
+
+        const bodyBob = (1.0 - wingMask) * Math.sin(butterfly.flapPhase * 0.5 + seed * 0.01) * (0.010 + (1 - landedMix) * 0.008);
+
+        const n1 = Math.sin(time * 1.55 + seed * 1.13);
+        const n2 = Math.cos(time * 1.20 + seed * 0.71);
+        const n3 = Math.sin(time * 0.95 + seed * 0.37);
+        const floatAmp = CONFIG.surfaceFloat * (1.0 - spanMask * 0.68) * (1.0 - landedMix * 0.65);
+
+        const tx = baseX + (n1 * 0.6 + n2 * 0.4) * floatAmp;
+        const ty = baseY + bodyBob + (n2 * 0.6 + n3 * 0.4) * floatAmp;
+        const tz = baseZ + (n3 * 0.6 + n1 * 0.4) * floatAmp;
+
+        const follow = lerp(0.24, 0.12, spanMask) + wingMask * 0.015;
+        pos[idx3] = lerp(pos[idx3], tx, follow);
+        pos[idx3 + 1] = lerp(pos[idx3 + 1], ty, follow);
+        pos[idx3 + 2] = lerp(pos[idx3 + 2], tz, follow);
+      }
+
+      particleGeometry.attributes.position.needsUpdate = true;
+
+      const wingFlash = 1.10 + (1 - landedMix) * 0.20 + butterfly.flapBoost * 0.12;
+      particleMaterial.uniforms.uTime.value = time;
+      particleMaterial.uniforms.uProgress.value = 0;
+      particleMaterial.uniforms.uOpacity.value = wingFlash;
+
+      debugEl.textContent =
+        `${gesture.found ? 'hand locked' : 'no hand'} · ${gesture.mode} · detected ${gesture.detectCount} · lost ${gesture.lostFrames} · handDepth ${Math.round(gesture.depth * 100)}%`;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const dt = Math.min(clock.getDelta(), 0.033);
+      const time = clock.elapsedTime;
+
+      controls.update();
+
+      updateGestureTarget(dt, time);
+      updateParticles(dt, time);
+
+      renderer.render(scene, camera);
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      if (particleMaterial) {
+        particleMaterial.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio || 1, 2);
+      }
+    }
+
+    async function start() {
+      if (started) return;
+
+      try {
+        startBtn.textContent = 'Loading Camera + Hands...';
+
+        initThree();
+        await loadGLBAsParticles();
+
+        started = true;
+        await startCameraAndHands();
+
+        startBtn.style.display = 'none';
+
+        animate();
+      } catch (err) {
+        console.error(err);
+        debugEl.textContent = 'failed: ' + err.message;
+        startBtn.textContent = 'Failed - Check Console';
+      }
+    }
+
+    startBtn.addEventListener('click', start);
+
+    window.addEventListener('keydown', e => {
+      const key = e.key.toLowerCase();
+
+      if (key === 'm') {
+        CONFIG.mirrorPreview = !CONFIG.mirrorPreview;
+        video.style.transform = CONFIG.mirrorPreview ? 'scaleX(-1)' : 'scaleX(1)';
+      }
+
+      if (key === '+') {
+        CONFIG.modelScale *= 1.08;
+      }
+
+      if (key === '-') {
+        CONFIG.modelScale *= 0.92;
+      }
+    });
+  </script>
+</body>
+</html>
