@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Huansen - 交互体验 / AI创意 / 游戏策划作品集</title>
+<style>
+  /* =========================================
+     基础重置
+     ========================================= */
+  body, html {
+    margin: 0; padding: 0; width: 100%; overflow-x: hidden; 
+    background-color: #fafafa; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    scroll-behavior: smooth;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+
+  /* =========================================
+     右上角主题切换开关
+     ========================================= */
+  .theme-switch {
+    position: fixed; top: 40px; right: 40px; width: 64px; height: 32px;
+    background-color: #e0e0e0; border-radius: 32px; cursor: pointer; z-index: 9999;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); transition: background-color 0.3s;
+    display: flex; align-items: center; padding: 4px; box-sizing: border-box;
+  }
+  .theme-switch .thumb {
+    width: 24px; height: 24px; background-color: #fff; border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2); transform: translateX(0);
+    transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+  body.pop-theme .theme-switch { background-color: #E91E63; border: 3px solid #000; box-shadow: 4px 4px 0px #000; }
+  body.pop-theme .theme-switch .thumb { transform: translateX(32px); background-color: #FFEB3B; border: 2px solid #000; box-shadow: none; }
+
+  /* =========================================
+     第一屏：Hero Section 开场白
+     ========================================= */
+  .hero-section {
+    position: relative; width: 100%; height: 100vh; display: flex; justify-content: center; align-items: center;
+    overflow: hidden; background-color: #ffffff; 
+  }
+  .layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; perspective: 1000px; }
+  .layer-base { background-color: #ffffff; z-index: 1; }
+  .layer-base .text-thin, .layer-base .text-bold { color: #000000; }
+
+  .layer-hover {
+    background-color: #000000; z-index: 2;
+    clip-path: circle(var(--circle-size, 0px) at var(--mouse-x, -500px) var(--mouse-y, -500px));
+    -webkit-clip-path: circle(var(--circle-size, 0px) at var(--mouse-x, -500px) var(--mouse-y, -500px));
+    opacity: 0; transition: opacity 0.3s ease; pointer-events: none;
+  }
+  .layer-hover .text-thin, .layer-hover .text-bold, .layer-hover .subtitle { color: #ffffff; }
+  body.pop-theme .layer-hover { display: none !important; }
+
+  .hero-group {
+    position: relative; width: 96vw; height: 72vh; display: flex; flex-direction: column; justify-content: center; align-items: center;
+    transform-style: preserve-3d; cursor: crosshair;
+  }
+
+  .text-wrapper { display: flex; align-items: baseline; gap: 1.5vw; }
+  .text-thin { font-size: 4vw; font-weight: 100; letter-spacing: -0.05em; white-space: nowrap; min-width: 18vw; text-align: right; }
+  .text-bold { font-size: 11vw; font-weight: 900; letter-spacing: -0.05em; white-space: nowrap; }
+
+  .subtitle {
+    position: absolute; top: 75%; left: 0; width: 100%; text-align: center;
+    font-size: 20px; font-weight: 300; letter-spacing: 0.4em; opacity: 0.7; transform: translateZ(30px); text-indent: 0.4em;
+  }
+
+  .scroll-indicator { position: absolute; bottom: 4vh; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .scroll-text { font-size: 11px; font-weight: 600; letter-spacing: 0.3em; text-transform: uppercase; transition: color 0.3s; }
+  .scroll-line-box { width: 1px; height: 6vh; position: relative; overflow: hidden; }
+  .scroll-line-inner { position: absolute; top: 0; left: 0; width: 100%; height: 50%; animation: scrollDown 2s cubic-bezier(0.77, 0, 0.175, 1) infinite; }
+  .pop-arrow { display: none; width: 28px; height: 36px; filter: drop-shadow(4px 4px 0px #000); animation: popBounce 0.8s steps(2, end) infinite; }
+
+  @keyframes scrollDown { 0% { transform: translateY(-100%); } 100% { transform: translateY(200%); } }
+  @keyframes popBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
+
+  #layerBase .scroll-text { color: #000; } #layerBase .scroll-line-box { background-color: rgba(0,0,0,0.1); } #layerBase .scroll-line-inner { background-color: #000; }
+  #layerHover .scroll-text { color: #fff; } #layerHover .scroll-line-box { background-color: rgba(255,255,255,0.2); } #layerHover .scroll-line-inner { background-color: #fff; }
+
+  /* =========================================
+     第二屏：竖向卡片流
+     ========================================= */
+  .cards-section {
+    position: relative; width: 100%; min-height: 100vh; display: flex; justify-content: center;
+    padding: 15vh 5vw; box-sizing: border-box; overflow: hidden; 
+  }
+  .cards-grid { display: flex; flex-direction: column; gap: 8vh; width: 100%; max-width: 800px; position: relative; z-index: 10; }
+
+  .card-wrapper { perspective: 2500px; height: 380px; width: 100%; cursor: pointer; position: relative; z-index: 10; }
+  .card-wrapper:hover { z-index: 20; }
+  .card-wrapper::after { content: ''; position: absolute; inset: -60px; z-index: 100; }
+
+  .card-tilt-container { width: 100%; height: 100%; position: relative; transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); transform-style: preserve-3d; }
+  .card-wrapper:nth-child(1) .card-tilt-container { transform: translateX(-6%) rotate(-2deg); }
+  .card-wrapper:nth-child(2) .card-tilt-container { transform: translateX(8%) rotate(3deg); }
+  .card-wrapper:nth-child(3) .card-tilt-container { transform: translateX(-4%) rotate(-1.5deg); }
+  .card-wrapper:hover .card-tilt-container { transform: translateX(0) rotate(0deg) scale(1.02); }
+
+  .card { width: 100%; height: 100%; position: relative; transition: transform 0.9s cubic-bezier(0.25, 1, 0.5, 1); transform-style: preserve-3d; }
+  .card-wrapper:hover .card { transform: rotateY(180deg); }
+
+  .card-face {
+    position: absolute; inset: 0; -webkit-backface-visibility: hidden; backface-visibility: hidden; border-radius: 16px; 
+    display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 40px; box-sizing: border-box; overflow: hidden; 
+  }
+
+  .card-front {
+    background-color: #ffffff; transform: rotateY(0deg); box-shadow: 0 4px 12px rgba(0,0,0,0.03), 0 20px 40px rgba(0,0,0,0.06);
+    border: 1px solid rgba(0,0,0,0.04); z-index: 2;
+  }
+  .card-front h2 {
+    font-size: 36px; font-weight: 900; color: #111; letter-spacing: 0.15em; margin: 0; position: relative; z-index: 10; 
+    text-shadow: -2px -2px 4px #ffffff, 2px -2px 4px #ffffff, -2px 2px 4px #ffffff, 2px 2px 4px #ffffff, 0 0 15px #ffffff, 0 0 30px #ffffff, 0 0 45px #ffffff;
+  }
+
+  .danmaku-item { position: absolute; white-space: nowrap; color: #000000; z-index: 1; font-weight: 700; pointer-events: none; }
+  @keyframes flowRight { 0% { transform: translateX(-100%); left: -10%; } 100% { transform: translateX(0%); left: 110%; } }
+  @keyframes flowLeft { 0% { transform: translateX(100%); right: -10%; } 100% { transform: translateX(0%); right: 110%; } }
+
+  .card-back { background-color: #242424; color: #f0f0f0; transform: rotateY(180deg); text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.15); z-index: 1; }
+  .card-back h3 { font-size: 14px; font-weight: 100; letter-spacing: 0.4em; text-transform: uppercase; opacity: 0.4; margin-bottom: 30px; margin-top: 0; }
+  .card-back p { font-size: 18px; font-weight: 300; line-height: 2.2; margin: 0; letter-spacing: 0.05em; color: rgba(255,255,255,0.85); }
+
+  /* =========================================
+     第三屏：“现实异轨”横向档案馆
+     ========================================= */
+  .archive-section {
+    position: relative; width: 100%; height: 100vh; background-color: #fafafa; border-top: 1px solid rgba(0,0,0,0.05); display: flex; align-items: center; 
+  }
+  .sticky-container { width: 100%; height: 100%; display: flex; align-items: center; }
+  .horizontal-track {
+    display: flex; gap: 8vw; padding: 150px 10vw; width: 100%; overflow-x: auto; overflow-y: hidden; -ms-overflow-style: none; scrollbar-width: none; cursor: grab; box-sizing: border-box; 
+  }
+  .horizontal-track::-webkit-scrollbar { display: none; }
+
+  .archive-item {
+    position: relative; width: 70vw; aspect-ratio: 21 / 9; flex-shrink: 0; background-color: #000; border-radius: 16px; overflow: hidden;
+    -webkit-mask-image: -webkit-radial-gradient(white, black); -webkit-transform: translateZ(0); isolation: isolate; border: 1px solid rgba(255,255,255,0.4); 
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02), 0 12px 24px rgba(0,0,0,0.04), 0 32px 64px rgba(0,0,0,0.08), 0 80px 120px rgba(0,0,0,0.12); 
+    transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .archive-item:hover { 
+    transform: translateY(-12px) scale(1.01); box-shadow: 0 8px 12px rgba(0,0,0,0.03), 0 24px 48px rgba(0,0,0,0.06), 0 64px 96px rgba(0,0,0,0.1), 0 120px 160px rgba(0,0,0,0.18); 
+  } 
+
+  .visual-base { position: absolute; inset: 0; background-size: cover; background-position: center; transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1); z-index: 0; border-radius: inherit; }
+  .archive-item:hover .visual-base { transform: scale(1.03); }
+  .archive-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 40%); opacity: 0; transition: opacity 0.6s ease; z-index: 1; pointer-events: none; border-radius: inherit; }
+  .archive-item:hover .archive-overlay { opacity: 1; }
+  .archive-title { position: absolute; bottom: -80px; left: 40px; color: #fff; font-size: 22px; font-weight: 300; letter-spacing: 0.15em; transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 2; }
+  .archive-item:hover .archive-title { transform: translateY(-110px); } 
+
+  /* =========================================
+     项目分类中心：求职作品索引
+     ========================================= */
+  .project-hub-section {
+    position: relative; min-height: 100vh; padding: 12vh 6vw 14vh; box-sizing: border-box;
+    background: #ffffff; border-top: 1px solid rgba(0,0,0,0.05); overflow: hidden;
+  }
+  .project-hub-inner { width: min(1180px, 100%); margin: 0 auto; position: relative; z-index: 2; }
+  .project-kicker {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.28em; text-transform: uppercase; color: #777; margin-bottom: 16px;
+  }
+  .project-heading {
+    display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr); gap: 6vw; align-items: end; margin-bottom: 36px;
+  }
+  .project-heading h2 {
+    font-size: clamp(44px, 8vw, 116px); line-height: 0.92; letter-spacing: 0; margin: 0; color: #111; font-weight: 900;
+  }
+  .project-heading p {
+    margin: 0; font-size: 16px; line-height: 1.9; color: #4b4b4b; font-weight: 350;
+  }
+  .project-filter {
+    display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 28px;
+  }
+  .project-filter button {
+    appearance: none; border: 1px solid rgba(0,0,0,0.16); border-radius: 999px; background: #fff; color: #111;
+    padding: 10px 16px; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; cursor: pointer;
+    transition: background 0.25s, color 0.25s, border-color 0.25s, transform 0.25s;
+  }
+  .project-filter button:hover,
+  .project-filter button.is-active { background: #111; color: #fff; border-color: #111; transform: translateY(-1px); }
+  .project-grid {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px;
+  }
+  .project-card {
+    position: relative; min-height: 270px; padding: 24px; box-sizing: border-box; border: 1px solid rgba(0,0,0,0.08);
+    background: #fafafa; border-radius: 8px; overflow: hidden; transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.35s, border-color 0.35s, opacity 0.25s;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .project-card:hover {
+    transform: translateY(-6px); box-shadow: 0 24px 70px rgba(0,0,0,0.10); border-color: rgba(0,0,0,0.18);
+  }
+  .project-card.is-hidden { display: none; }
+  .project-meta {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px;
+  }
+  .project-tag {
+    display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 999px;
+    background: #111; color: #fff; font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  }
+  .project-year { background: #eeeeee; color: #222; }
+  .project-card h3 {
+    font-size: clamp(22px, 3vw, 36px); line-height: 1.08; letter-spacing: 0; margin: 0 0 12px; color: #111; font-weight: 900;
+  }
+  .project-card p {
+    margin: 0; color: #3d3d3d; font-size: 15px; line-height: 1.8;
+  }
+  .project-points {
+    display: grid; gap: 8px; margin-top: 18px;
+  }
+  .project-point {
+    font-size: 13px; line-height: 1.55; color: #666; border-top: 1px solid rgba(0,0,0,0.08); padding-top: 8px;
+  }
+  .project-link-row {
+    display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-top: 24px;
+    font-size: 12px; color: #777; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .project-link-row a {
+    color: #111; text-decoration: none; font-weight: 800; border-bottom: 1px solid currentColor; padding-bottom: 2px;
+  }
+  .project-empty-note {
+    margin-top: 22px; font-size: 13px; color: #777; line-height: 1.8;
+  }
+
+  /* =========================================
+     🔥 第四屏：巨幅双语磁吸 Footer 🔥
+     ========================================= */
+  .footer-section {
+    position: relative; width: 100%; height: 100vh; background-color: #ffffff;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    overflow: hidden; cursor: crosshair; border-top: 1px solid rgba(0,0,0,0.05); box-sizing: border-box;
+  }
+
+  .footer-label { 
+    font-size: 14px; font-weight: 600; letter-spacing: 0.4em; text-transform: uppercase; 
+    color: #888; margin-bottom: 2vh; transition: color 0.4s, background-color 0.4s, border 0.4s, box-shadow 0.4s; 
+  }
+  .footer-label .label-zh { display: none; }
+
+  .magnetic-wrap { position: relative; display: inline-block; padding: 40px; cursor: pointer; }
+
+  .contact-mask {
+    position: relative; height: 10vw; overflow: hidden; display: flex; justify-content: center; align-items: center;
+    transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); transform-origin: center center;
+  }
+
+  .contact-en, .contact-zh {
+    font-size: 8vw; font-weight: 900; color: #111; letter-spacing: -0.02em; text-transform: uppercase;
+    position: absolute; white-space: nowrap; user-select: none; transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), text-shadow 0.3s;
+  }
+
+  .contact-en { transform: translateY(0%); }
+  .contact-zh { transform: translateY(120%); }
+  .magnetic-wrap:hover .contact-en { transform: translateY(-120%); }
+  .magnetic-wrap:hover .contact-zh { transform: translateY(0%); }
+
+  .copy-toast {
+    position: absolute; top: 100%; left: 50%; transform: translate(-50%, 20px); font-size: 16px; font-weight: 600; letter-spacing: 0.2em; color: #000;
+    opacity: 0; transition: opacity 0.4s, transform 0.4s; pointer-events: none;
+  }
+  .copy-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* 独立邮箱与动态箭头包裹层 */
+  .email-magnetic-wrap {
+    display: flex; align-items: center; justify-content: center; gap: 20px; /* 布局箭头和邮箱 */
+    margin-top: 3vh; padding: 20px; transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1); cursor: pointer; z-index: 10;
+  }
+  
+  .email-link {
+    display: inline-block; font-size: 24px; font-weight: 500; letter-spacing: 0.1em; color: #888; text-decoration: none; position: relative; transition: color 0.4s ease, transform 0.2s;
+  }
+  .email-link::after { content: ''; position: absolute; bottom: -6px; left: 0; width: 0%; height: 1px; background-color: #000; transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1); }
+  .email-magnetic-wrap:hover .email-link { color: #000; }
+  .email-magnetic-wrap:hover .email-link::after { width: 100%; }
+
+  /* 🌟 极简模式下的呼吸动态箭头 🌟 */
+  .dynamic-arrow {
+    width: 24px; height: 24px; opacity: 0.4; transition: opacity 0.3s, transform 0.3s;
+  }
+  .dynamic-arrow svg { width: 100%; height: 100%; fill: #888; transition: fill 0.3s; }
+  .email-magnetic-wrap:hover .dynamic-arrow { opacity: 1; }
+  .email-magnetic-wrap:hover .dynamic-arrow svg { fill: #000; }
+
+  .arrow-left { animation: pointRight 1.5s infinite ease-in-out; }
+  .arrow-right { transform: scaleX(-1); animation: pointLeft 1.5s infinite ease-in-out; }
+
+  @keyframes pointRight { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(8px); } }
+  @keyframes pointLeft { 0%, 100% { transform: scaleX(-1) translateX(0); } 50% { transform: scaleX(-1) translateX(8px); } }
+
+  .footer-bottom { position: absolute; bottom: 40px; font-size: 12px; font-weight: 300; color: #999; letter-spacing: 0.1em; transition: color 0.4s, font-weight 0.4s; }
+
+  /* =========================================
+     🌟 波普艺术 (Pop Art) 风格覆盖 🌟
+     ========================================= */
+  body.pop-theme { 
+    background-color: #00E5FF; background-image: radial-gradient(#111 10%, transparent 11%), radial-gradient(#111 10%, transparent 11%); background-size: 40px 40px; background-position: 0 0, 20px 20px;
+  }
+
+  body.pop-theme .hero-section { border-bottom: 12px solid #000; box-sizing: border-box; }
+  body.pop-theme .layer-base { background-color: #FFEB3B; background-image: radial-gradient(#222 15%, transparent 16%), radial-gradient(#222 15%, transparent 16%); background-size: 20px 20px; background-position: 0 0, 10px 10px; }
+  body.pop-theme .layer-base .text-thin { color: #000; font-weight: 900; }
+  body.pop-theme .layer-base .text-bold { color: #fff; -webkit-text-stroke: 3px #000; text-shadow: 10px 10px 0px #000; }
+  body.pop-theme .subtitle { font-weight: 900; color: #000; opacity: 1; -webkit-text-stroke: 1px #fff; }
+
+  body.pop-theme .card-wrapper:nth-child(1) .card-tilt-container { transform: translateX(-8%) rotate(-4deg); }
+  body.pop-theme .card-wrapper:nth-child(2) .card-tilt-container { transform: translateX(12%) rotate(5deg); }
+  body.pop-theme .card-wrapper:nth-child(3) .card-tilt-container { transform: translateX(-6%) rotate(-3deg); }
+  body.pop-theme .card-wrapper:hover .card-tilt-container { transform: translateX(0) rotate(0deg) scale(1.05); }
+
+  body.pop-theme .card-front { background-color: #E91E63; border: 4px solid #000; box-shadow: 14px 14px 0px #000; border-radius: 0; }
+  body.pop-theme .card-front h2 { color: #fff; -webkit-text-stroke: 2px #000; text-shadow: 6px 6px 0px #000; }
+  body.pop-theme .card-back { background-color: #FFEB3B; border: 4px solid #000; border-radius: 0; }
+  body.pop-theme .card-back h3 { color: #000; font-weight: 900; opacity: 1; }
+  body.pop-theme .card-back p { color: #000; font-weight: 900; text-shadow: none; } 
+  body.pop-theme .danmaku-item { color: #000; font-weight: 900; -webkit-text-stroke: 2px #fff; opacity: 0.8 !important;}
+
+  body.pop-theme .scroll-line-box { display: none; }
+  body.pop-theme .pop-arrow { display: block; }
+  body.pop-theme #layerBase .scroll-text { font-weight: 900; color: #fff; -webkit-text-stroke: 1px #000; text-shadow: 2px 2px 0px #000; font-size: 14px; letter-spacing: 0.15em; }
+
+  body.pop-theme .archive-section { 
+    background-color: #9C27B0; background-image: radial-gradient(#111 10%, transparent 11%), radial-gradient(#111 10%, transparent 11%);
+    background-size: 40px 40px; background-position: 0 0, 20px 20px; border-top: 12px solid #000; border-bottom: 12px solid #000;
+  }
+  body.pop-theme .archive-item { border: 4px solid #000; box-shadow: 16px 16px 0px #000; border-radius: 0; transform: none; }
+  body.pop-theme .archive-item:hover { transform: translate(-8px, -8px); box-shadow: 24px 24px 0px #000; }
+  body.pop-theme .archive-overlay { display: none; } 
+  body.pop-theme .archive-title { color: #fff; font-weight: 900; -webkit-text-stroke: 2px #000; text-shadow: 6px 6px 0px #000; font-size: 26px; left: 20px; }
+
+  body.pop-theme .project-hub-section {
+    background-color: #00E5FF; background-image: radial-gradient(#111 10%, transparent 11%), radial-gradient(#111 10%, transparent 11%);
+    background-size: 40px 40px; background-position: 0 0, 20px 20px; border-top: 12px solid #000; border-bottom: 12px solid #000;
+  }
+  body.pop-theme .project-kicker,
+  body.pop-theme .project-heading p,
+  body.pop-theme .project-empty-note { color: #000; font-weight: 900; }
+  body.pop-theme .project-heading h2 {
+    color: #fff; -webkit-text-stroke: 3px #000; text-shadow: 10px 10px 0 #000;
+  }
+  body.pop-theme .project-filter button,
+  body.pop-theme .project-card {
+    border: 4px solid #000; border-radius: 0; box-shadow: 10px 10px 0 #000;
+  }
+  body.pop-theme .project-filter button { background: #FFEB3B; color: #000; }
+  body.pop-theme .project-filter button.is-active,
+  body.pop-theme .project-filter button:hover { background: #E91E63; color: #fff; transform: translate(-3px, -3px); }
+  body.pop-theme .project-card { background: #FFEB3B; }
+  body.pop-theme .project-card:hover { transform: translate(-6px, -6px); box-shadow: 16px 16px 0 #000; }
+  body.pop-theme .project-card h3 { color: #fff; -webkit-text-stroke: 1.5px #000; text-shadow: 4px 4px 0 #000; }
+  body.pop-theme .project-card p,
+  body.pop-theme .project-point,
+  body.pop-theme .project-link-row { color: #000; font-weight: 800; }
+  body.pop-theme .project-tag { background: #E91E63; color: #fff; border: 2px solid #000; border-radius: 0; }
+  body.pop-theme .project-year { background: #fff; color: #000; }
+
+  body.pop-theme .footer-section { 
+    background-color: #FFEB3B; background-image: radial-gradient(#222 15%, transparent 16%), radial-gradient(#222 15%, transparent 16%);
+    background-size: 20px 20px; background-position: 0 0, 10px 10px; border-top: 0;
+  }
+  
+  body.pop-theme .footer-label { color: #000; font-weight: 900; background: #fff; padding: 6px 16px; border: 2px solid #000; box-shadow: 4px 4px 0px #000; }
+  body.pop-theme .footer-label .label-en { display: none; }
+  body.pop-theme .footer-label .label-zh { display: inline-block; letter-spacing: 0.15em; font-weight: 900; }
+  
+  body.pop-theme .contact-en { color: #fff; -webkit-text-stroke: 4px #000; text-shadow: 12px 12px 0px #000; }
+  body.pop-theme .contact-zh { color: #00E5FF; -webkit-text-stroke: 4px #000; text-shadow: 12px 12px 0px #000; }
+  
+  body.pop-theme .contact-mask:active { transform: scale(0.9) !important; }
+  body.pop-theme .contact-mask:active .contact-en, body.pop-theme .contact-mask:active .contact-zh { text-shadow: 4px 4px 0px #000; }
+  body.pop-theme .copy-toast { color: #000; font-weight: 900; background: #00E5FF; padding: 8px 20px; border: 3px solid #000; box-shadow: 6px 6px 0px #000; }
+  
+  body.pop-theme .email-link {
+    background: #E91E63; color: #fff; padding: 12px 32px; font-weight: 900; font-size: 28px; letter-spacing: 0.1em;
+    border: 3px solid #000; box-shadow: 6px 6px 0px #000; -webkit-text-stroke: 1px #000; text-shadow: 2px 2px 0px #000;
+    transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.2s;
+  }
+  body.pop-theme .email-link::after { display: none; }
+  body.pop-theme .email-magnetic-wrap:hover .email-link { transform: translate(-4px, -4px); box-shadow: 10px 10px 0px #000; color: #fff; }
+  body.pop-theme .email-magnetic-wrap:active .email-link { transform: translate(2px, 2px); box-shadow: 4px 4px 0px #000; }
+
+  /* 🔥 波普模式下的抽搐动态箭头 🔥 */
+  body.pop-theme .dynamic-arrow { width: 36px; height: 36px; opacity: 1; }
+  body.pop-theme .dynamic-arrow svg { fill: #39FF14; stroke: #000; stroke-width: 2; filter: drop-shadow(4px 4px 0px #000); overflow: visible; }
+  body.pop-theme .email-magnetic-wrap:hover .dynamic-arrow svg { fill: #FFEB3B; }
+  
+  body.pop-theme .arrow-left { animation: popPointRight 0.6s steps(2, end) infinite; }
+  body.pop-theme .arrow-right { animation: popPointLeft 0.6s steps(2, end) infinite; transform: scaleX(-1); }
+
+  @keyframes popPointRight { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(12px); } }
+  @keyframes popPointLeft { 0%, 100% { transform: scaleX(-1) translateX(0); } 50% { transform: scaleX(-1) translateX(12px); } }
+
+  body.pop-theme .footer-bottom { color: #000; font-weight: 900; }
+
+  /* 雕像雨 & 云朵 */
+  .pop-clouds-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; display: none; }
+  body.pop-theme .pop-clouds-container { display: block; }
+  .pop-cloud { position: absolute; opacity: 0.9; filter: drop-shadow(8px 8px 0px #000); }
+  .pop-cloud svg { width: 100%; height: auto; }
+  @keyframes flowCloudRight { 0% { left: -30%; } 100% { left: 120%; } }
+  @keyframes flowCloudLeft { 0% { left: 120%; } 100% { left: -30%; } }
+
+  .statue-layer { position: absolute; top: 0; left: 0; width: 100%; height: 400vh; pointer-events: none; z-index: 900; display: none; }
+  body.pop-theme .statue-layer { display: block; } 
+  #statueRainTop { clip-path: polygon(0 0, 100% 0, 100% 100vh, 0 100vh); -webkit-clip-path: polygon(0 0, 100% 0, 100% 100vh, 0 100vh); }
+  #statueRainBottom { clip-path: polygon(0 100vh, 100% 100vh, 100% 400vh, 0 400vh); -webkit-clip-path: polygon(0 100vh, 100% 100vh, 100% 400vh, 0 400vh); }
+
+  .falling-statue { position: absolute; top: 0; width: 100px; height: auto; opacity: 0; animation: statueFall linear forwards; filter: drop-shadow(6px 6px 0px #000); }
+  .falling-statue svg { stroke: #000; stroke-width: 5px; fill-rule: evenodd; }
+  .statue-david svg path:first-child { fill: #00E5FF; } 
+  .statue-david svg path:nth-child(2) { fill: #FFEB3B; } 
+  .statue-venus svg path:first-child { fill: #E91E63; } 
+  .statue-venus svg circle { fill: #39FF14; } 
+  .statue-column svg path { fill: #9C27B0; stroke: #FFEB3B; } 
+  .statue-yellow-mode svg path, .statue-yellow-mode svg circle { fill: #FFEB3B !important; }
+
+  @keyframes statueFall { 0% { transform: translateY(-20vh) rotate(0deg); opacity: 0; } 5% { opacity: 1; } 95% { opacity: 1; } 100% { transform: translateY(320vh) rotate(360deg); opacity: 0; } }
+
+  @media (max-width: 760px) {
+    .theme-switch { top: 18px; right: 18px; }
+    .text-wrapper { flex-direction: column; align-items: center; gap: 0; }
+    .text-thin { font-size: 9vw; min-width: 0; text-align: center; letter-spacing: 0; }
+    .text-bold { font-size: 18vw; letter-spacing: 0; }
+    .subtitle { font-size: 12px; letter-spacing: 0.18em; top: 78%; padding: 0 20px; box-sizing: border-box; }
+    .cards-section { padding: 10vh 4vw; }
+    .card-wrapper { height: 320px; }
+    .card-face { border-radius: 8px; padding: 26px; }
+    .card-front h2 { font-size: 28px; letter-spacing: 0.08em; }
+    .project-hub-section { padding: 10vh 5vw; }
+    .project-heading { grid-template-columns: 1fr; gap: 22px; }
+    .project-heading h2 { font-size: 16vw; }
+    .project-grid { grid-template-columns: 1fr; }
+    .project-card { min-height: auto; padding: 20px; }
+    .archive-item { width: 86vw; aspect-ratio: 4 / 3; }
+    .horizontal-track { padding: 90px 7vw; gap: 6vw; }
+    .contact-mask { height: 17vw; }
+    .contact-en, .contact-zh { font-size: 14vw; }
+    .email-link { font-size: 16px; letter-spacing: 0.04em; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="theme-switch" id="themeSwitch">
+    <div class="thumb"></div>
+  </div>
+
+  <div class="statue-layer" id="statueRainTop"></div>
+  <div class="statue-layer" id="statueRainBottom"></div>
+
+  <section class="hero-section" id="heroSection">
+    <div class="layer layer-base" id="layerBase">
+      <div class="hero-group" id="groupBase">
+        <div class="text-wrapper">
+          <span class="text-thin">Hello, I am</span>
+          <span class="text-bold">Huansen</span>
+        </div>
+      </div>
+      <div class="scroll-indicator">
+        <div class="scroll-text">Scroll</div>
+        <div class="scroll-line-box"><div class="scroll-line-inner"></div></div>
+        <svg class="pop-arrow" viewBox="0 0 40 50"><path d="M10,0 L30,0 L30,20 L40,20 L20,50 L0,20 L10,20 Z" fill="#E91E63" stroke="#000" stroke-width="4" stroke-linejoin="miter" /></svg>
+      </div>
+    </div>
+
+    <div class="layer layer-hover" id="layerHover">
+      <div class="hero-group" id="groupHover">
+        <div class="text-wrapper">
+          <span class="text-thin" id="transPrefix">你好，我是</span>
+          <span class="text-bold" id="transName">幻森</span>
+        </div>
+        <div class="subtitle">26届广美毕业生试图探寻网站视觉的神奇。</div>
+      </div>
+      <div class="scroll-indicator">
+        <div class="scroll-text">Scroll</div>
+        <div class="scroll-line-box"><div class="scroll-line-inner"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cards-section">
+    <div class="pop-clouds-container">
+      <div class="pop-cloud" style="width: 180px; top: 5%; animation: flowCloudRight 28s linear infinite;">
+        <svg viewBox="0 0 120 80"><path d="M30,60 C10,60 10,35 30,35 C30,15 65,15 75,30 C90,20 110,35 105,55 C115,75 85,80 75,70 C60,85 30,80 30,60 Z" fill="#FFF" stroke="#000" stroke-width="5" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="pop-cloud" style="width: 220px; top: 35%; animation: flowCloudLeft 35s linear infinite; left: 100%;">
+        <svg viewBox="0 0 120 80"><path d="M30,60 C10,60 10,35 30,35 C30,15 65,15 75,30 C90,20 110,35 105,55 C115,75 85,80 75,70 C60,85 30,80 30,60 Z" fill="#FFF" stroke="#000" stroke-width="5" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+    <div class="cards-grid">
+      <div class="card-wrapper">
+        <div class="card-tilt-container">
+          <div class="card">
+            <div class="card-face card-front" id="cardSpecialties"><h2>我的特长？</h2></div>
+            <div class="card-face card-back"><h3>Specialties</h3><p>UE 渲染</p><p>3D 场景搭建</p><p>影片剪辑</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="card-wrapper">
+        <div class="card-tilt-container">
+          <div class="card">
+            <div class="card-face card-front" id="cardInterests"><h2>我的爱好？</h2></div>
+            <div class="card-face card-back"><h3>Interests</h3><p>电子音乐</p><p>电子游戏探索</p><p>前沿技术极客</p><p>国际格局与变化</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="card-wrapper">
+        <div class="card-tilt-container">
+          <div class="card">
+            <div class="card-face card-front" id="cardPersonality"><h2>我的性格？</h2></div>
+            <div class="card-face card-back"><h3>Personality</h3><p>热情开朗</p><p>高度的学习自驱力</p><p>对未知技术充满热忱</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="project-hub-section" id="projectHub">
+    <div class="project-hub-inner">
+      <div class="project-kicker">PROJECT INDEX / 求职作品索引</div>
+      <div class="project-heading">
+        <h2>Project Map</h2>
+        <p>把作品按招聘方向拆开：游戏策划看规则与反馈，交互体验看用户路径，AI创意看工具流程，视觉影像看叙事氛围。</p>
+      </div>
+
+      <div class="project-filter" aria-label="项目分类筛选">
+        <button type="button" class="is-active" data-filter="all" aria-pressed="true">全部</button>
+        <button type="button" data-filter="game" aria-pressed="false">游戏策划</button>
+        <button type="button" data-filter="ux" aria-pressed="false">交互体验</button>
+        <button type="button" data-filter="ai" aria-pressed="false">AI / AIGC</button>
+        <button type="button" data-filter="visual" aria-pressed="false">视觉影像</button>
+      </div>
+
+      <div class="project-grid">
+        <article class="project-card" data-category="ux game visual">
+          <div>
+            <div class="project-meta">
+              <span class="project-tag">UE5</span>
+              <span class="project-tag">VR</span>
+              <span class="project-tag">叙事体验</span>
+              <span class="project-tag project-year">2026</span>
+            </div>
+            <h3>《余烬》 UE5 VR 交互叙事体验</h3>
+            <p>以水声、耳鸣、强制注视、字幕与黑屏转场组织玩家注意力，验证低 UI 场景里的叙事触发与情绪节奏。</p>
+            <div class="project-points">
+              <div class="project-point">关卡流程 / 触发节点 / VRPawn / OpenLevel / Fade / 物理文字</div>
+            </div>
+          </div>
+          <div class="project-link-row">
+            <span>Game UX</span>
+            <a href="https://ccn69dk69msd.feishu.cn/docx/UVEZdkG39oHaFUxz4Uxc1XfEnpf" target="_blank" rel="noopener">作品集</a>
+          </div>
+        </article>
+
+        <article class="project-card" data-category="game ux">
+          <div>
+            <div class="project-meta">
+              <span class="project-tag">Godot</span>
+              <span class="project-tag">音游</span>
+              <span class="project-tag">玩法反馈</span>
+              <span class="project-tag project-year">2026</span>
+            </div>
+            <h3>《糖音风暴 / 涂鸦风暴》 2.5D 音游原型</h3>
+            <p>搭建三轨按键、长按音符、判定线、Combo、生命值与 BPM 校准，形成操作、判定、提示的闭环。</p>
+            <div class="project-points">
+              <div class="project-point">Tap / Heavy / Air / Hold / 粒子 / 音效 / 轨道闪烁</div>
+            </div>
+          </div>
+          <div class="project-link-row">
+            <span>System Design</span>
+            <a href="#archiveSection">视频归档</a>
+          </div>
+        </article>
+
+        <article class="project-card" data-category="ai ux">
+          <div>
+            <div class="project-meta">
+              <span class="project-tag">AIGC</span>
+              <span class="project-tag">Prompt</span>
+              <span class="project-tag">Web Demo</span>
+              <span class="project-tag project-year">2026</span>
+            </div>
+            <h3>AI Prompt 生成工具</h3>
+            <p>把创意需求拆成风格、题材、媒介、限制条件等步骤，用可视化流程帮助用户生成可复用 Prompt。</p>
+            <div class="project-points">
+              <div class="project-point">模板结构 / 条件组合 / 结果展示 / DeepSeek API / Figma</div>
+            </div>
+          </div>
+          <div class="project-link-row">
+            <span>AI Product</span>
+            <a href="https://ccn69dk69msd.feishu.cn/docx/UVEZdkG39oHaFUxz4Uxc1XfEnpf" target="_blank" rel="noopener">作品集</a>
+          </div>
+        </article>
+
+        <article class="project-card" data-category="game ux visual">
+          <div>
+            <div class="project-meta">
+              <span class="project-tag">Godot</span>
+              <span class="project-tag">探索引导</span>
+              <span class="project-tag">氛围</span>
+              <span class="project-tag project-year">2026</span>
+            </div>
+            <h3>《A Garden / 一个花园》 探索引导原型</h3>
+            <p>围绕“捕捉光影，让第一朵花醒来”建立初始目标，用发光物、入口和文字提示组织玩家行动路径。</p>
+            <div class="project-points">
+              <div class="project-point">目标引导 / 环境叙事 / 实时反馈 / 初始教程</div>
+            </div>
+          </div>
+          <div class="project-link-row">
+            <span>Onboarding</span>
+            <a href="#archiveSection">视频归档</a>
+          </div>
+        </article>
+
+        <article class="project-card" data-category="ai ux visual">
+          <div>
+            <div class="project-meta">
+              <span class="project-tag">Three.js</span>
+              <span class="project-tag">MediaPipe</span>
+              <span class="project-tag">WebAR</span>
+              <span class="project-tag project-year">2026</span>
+            </div>
+            <h3>WebAR 粒子蝴蝶</h3>
+            <p>验证摄像头背景、手部识别、蝴蝶跟随与粒子反馈，关注移动端实时交互和稳定性。</p>
+            <div class="project-points">
+              <div class="project-point">手部识别 / 粒子反馈 / 跟随行为 / 摄像头预览</div>
+            </div>
+          </div>
+          <div class="project-link-row">
+            <span>Interaction</span>
+            <a href="https://ccn69dk69msd.feishu.cn/docx/UVEZdkG39oHaFUxz4Uxc1XfEnpf" target="_blank" rel="noopener">作品集</a>
+          </div>
+        </article>
+
+        <article class="project-card" data-category="visual">
+          <div>
+            <div class="project-meta">
+              <span class="project-tag">UE 渲染</span>
+              <span class="project-tag">剪辑</span>
+              <span class="project-tag">3D 场景</span>
+              <span class="project-tag project-year">2026</span>
+            </div>
+            <h3>影像与 3D 视觉实验</h3>
+            <p>以场景氛围、镜头节奏和后期剪辑形成视觉叙事，用于补充角色、产品和游戏项目展示。</p>
+            <div class="project-points">
+              <div class="project-point">UE 渲染 / 3D 场景 / 剪辑 / 声画节奏</div>
+            </div>
+          </div>
+          <div class="project-link-row">
+            <span>Visual</span>
+            <a href="#archiveSection">视频归档</a>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="archive-section" id="archiveSection">
+    <div class="sticky-container">
+      <div class="horizontal-track" id="horizontalTrack">
+        <div class="archive-item"><video class="visual-base" style="object-fit: cover; width: 100%; height: 100%;" loop muted playsinline><source src="./website/videos/1.mp4" type="video/mp4"></video><div class="archive-overlay"></div><div class="archive-title">山翼 // VIDEO 01</div></div>
+        <div class="archive-item"><video class="visual-base" style="object-fit: cover; width: 100%; height: 100%;" loop muted playsinline><source src="./website/videos/2.mp4" type="video/mp4"></video><div class="archive-overlay"></div><div class="archive-title"> 小菠萝 // VIDEO 02</div></div>
+        <div class="archive-item"><video class="visual-base" style="object-fit: cover; width: 100%; height: 100%;" loop muted playsinline><source src="./website/videos/3.mp4" type="video/mp4"></video><div class="archive-overlay"></div><div class="archive-title"> 悬崖 // VIDEO 03</div></div>
+        <div class="archive-item"><video class="visual-base" style="object-fit: cover; width: 100%; height: 100%;" loop muted playsinline><source src="./website/videos/4.mp4" type="video/mp4"></video><div class="archive-overlay"></div><div class="archive-title"> 旅途 // VIDEO 04</div></div>
+        <div class="archive-item"><video class="visual-base" style="object-fit: cover; width: 100%; height: 100%;" loop muted playsinline><source src="./website/videos/5.mp4" type="video/mp4"></video><div class="archive-overlay"></div><div class="archive-title"> 未来 // VIDEO 05</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="footer-section" id="footerSection">
+    
+    <div class="footer-label">
+      <span class="label-en">CONTACT ME</span>
+      <span class="label-zh">与我联系</span>
+    </div>
+    
+    <div class="magnetic-wrap" id="magneticWrap">
+      <div class="contact-mask" id="contactMask">
+        <span class="contact-en">Contact Me</span>
+        <span class="contact-zh">与我联系</span>
+      </div>
+      <div class="copy-toast" id="copyToast">COPIED TO CLIPBOARD!</div>
+    </div>
+    
+    <div class="email-magnetic-wrap" id="emailMagneticWrap">
+      <div class="dynamic-arrow arrow-left">
+        <svg viewBox="0 0 24 24"><path d="M4 10h10V4l8 8-8 8v-6H4z"/></svg>
+      </div>
+      
+      <a href="mailto:hhuanliu439@gmail.com" class="email-link">hhuanliu439@gmail.com</a>
+      
+      <div class="dynamic-arrow arrow-right">
+        <svg viewBox="0 0 24 24"><path d="M4 10h10V4l8 8-8 8v-6H4z"/></svg>
+      </div>
+    </div>
+    
+    <div class="footer-bottom">© 2026 HUANSEN. ALL RIGHTS RESERVED.</div>
+  </section>
+
+  <script>
+    // ==========================================
+    // 1. Web Audio API 原生电子合成器引擎
+    // ==========================================
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx;
+
+    function initAudio() {
+      if (!audioCtx) { audioCtx = new AudioContext(); }
+      if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+    }
+
+    function playPopTransitionSound() {
+      initAudio();
+      const osc1 = audioCtx.createOscillator(); const osc2 = audioCtx.createOscillator(); const gainNode = audioCtx.createGain();
+      osc1.type = 'sawtooth'; osc2.type = 'square';
+      osc1.frequency.setValueAtTime(200, audioCtx.currentTime); osc1.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.4);
+      osc2.frequency.setValueAtTime(100, audioCtx.currentTime); osc2.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.4);
+      gainNode.gain.setValueAtTime(0, audioCtx.currentTime); gainNode.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.1); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+      osc1.connect(gainNode); osc2.connect(gainNode); gainNode.connect(audioCtx.destination);
+      osc1.start(); osc2.start(); osc1.stop(audioCtx.currentTime + 0.5); osc2.stop(audioCtx.currentTime + 0.5);
+    }
+
+    function playMinimalTransitionSound() {
+      initAudio();
+      const osc = audioCtx.createOscillator(); const gainNode = audioCtx.createGain();
+      osc.type = 'sine'; osc.frequency.setValueAtTime(300, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.4);
+      gainNode.gain.setValueAtTime(0, audioCtx.currentTime); gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.05); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+      osc.connect(gainNode); gainNode.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+    }
+
+    function playFlipSound() {
+      initAudio();
+      const isPop = document.body.classList.contains('pop-theme');
+      const osc = audioCtx.createOscillator(); const gainNode = audioCtx.createGain();
+      if (isPop) {
+        osc.type = 'square'; osc.frequency.setValueAtTime(440, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1); 
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime); gainNode.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.02); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+      } else {
+        osc.type = 'sine'; osc.frequency.setValueAtTime(150, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime); gainNode.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.05); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+      }
+      osc.connect(gainNode); gainNode.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.4); 
+    }
+
+    function playCopySound() {
+      initAudio();
+      const isPop = document.body.classList.contains('pop-theme');
+      const osc = audioCtx.createOscillator(); const gainNode = audioCtx.createGain();
+      if (isPop) {
+        osc.type = 'square'; osc.frequency.setValueAtTime(880, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.1); 
+      } else {
+        osc.type = 'sine'; osc.frequency.setValueAtTime(200, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+      }
+      gainNode.gain.setValueAtTime(0, audioCtx.currentTime); gainNode.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.05); gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+      osc.connect(gainNode); gainNode.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.3); 
+    }
+
+    // ==========================================
+    // 2. 主题切换与波普雕像引擎
+    // ==========================================
+    const themeSwitch = document.getElementById('themeSwitch');
+    const rainTop = document.getElementById('statueRainTop');
+    const rainBottom = document.getElementById('statueRainBottom');
+    let statueInterval = null;
+
+    themeSwitch.addEventListener('click', (e) => {
+      const isCurrentlyPop = document.body.classList.contains('pop-theme');
+      if (!isCurrentlyPop) { playPopTransitionSound(); } else { playMinimalTransitionSound(); }
+
+      const x = e.clientX; const y = e.clientY;
+      const endRadius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+
+      if (!document.startViewTransition) { document.body.classList.toggle('pop-theme'); toggleStatueRain(); return; }
+
+      const transition = document.startViewTransition(() => { document.body.classList.toggle('pop-theme'); });
+      transition.ready.then(() => {
+        const isPop = document.body.classList.contains('pop-theme');
+        const clipPath = [ `circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)` ];
+        document.documentElement.animate(
+          { clipPath: isPop ? clipPath : [...clipPath].reverse() },
+          { duration: 800, easing: 'cubic-bezier(0.25, 1, 0.5, 1)', pseudoElement: isPop ? '::view-transition-new(root)' : '::view-transition-old(root)' }
+        );
+        toggleStatueRain(); 
+      });
+    });
+
+    const statueTemplates = [
+      { type: 'david', svg: '<svg viewBox="0 0 100 120"><path d="M20,40 Q50,0 80,40 L75,80 Q50,110 25,80 Z"/><path d="M40,50 L45,55 M55,50 L50,55 M40,65 L60,65 Q50,75 40,65" stroke-linecap="round"/></svg>' },
+      { type: 'venus', svg: '<svg viewBox="0 0 100 120"><path d="M30,30 Q50,0 70,30 L75,70 L25,70 Z"/><circle cx="40" cy="45" r="5"/><circle cx="60" cy="55" r="5"/><circle cx="50" cy="35" r="5"/></svg>' },
+      { type: 'column', svg: '<svg viewBox="0 0 100 120"><path d="M15,10 L85,10 L80,100 L20,100 Z M15,5 L85,5 L85,15 L15,15 Z M20,105 L80,105 L80,115 L20,115 Z"/></svg>' }
+    ];
+    function createStatue(immediate = false) {
+      const template = statueTemplates[Math.floor(Math.random() * statueTemplates.length)];
+      const divTop = document.createElement('div'); divTop.className = `falling-statue statue-${template.type}`; divTop.innerHTML = template.svg;
+      const divBottom = document.createElement('div'); divBottom.className = `falling-statue statue-${template.type} statue-yellow-mode`; divBottom.innerHTML = template.svg;
+      const size = Math.random() * 40 + 70; const left = Math.random() * 90; const dur = Math.random() * 3 + 4; const delay = immediate ? 0 : Math.random() * 1.5; 
+      [divTop, divBottom].forEach(div => { div.style.width = `${size}px`; div.style.left = `${left}%`; div.style.animationDuration = `${dur}s`; div.style.animationDelay = `${delay}s`; });
+      rainTop.appendChild(divTop); rainBottom.appendChild(divBottom);
+      divTop.addEventListener('animationend', () => { divTop.remove(); divBottom.remove(); });
+    }
+    function toggleStatueRain() {
+      if (document.body.classList.contains('pop-theme')) {
+        if (!statueInterval) { createStatue(true); statueInterval = setInterval(() => createStatue(false), 2000); }
+      } else { if (statueInterval) { clearInterval(statueInterval); statueInterval = null; rainTop.innerHTML = ''; rainBottom.innerHTML = ''; } }
+    }
+
+    // ==========================================
+    // 3. 第一屏：3D 弹簧物理引擎 + 防裁切引擎
+    // ==========================================
+    const heroSection = document.getElementById('heroSection');
+    const layerHover = document.getElementById('layerHover');
+    const groupBase = document.getElementById('groupBase');
+    const groupHover = document.getElementById('groupHover');
+    const transPrefix = document.getElementById('transPrefix');
+    const transName = document.getElementById('transName');
+
+    let hoverInterval = null; let isHovering = false;
+    let targetRotateX = 0; let targetRotateY = 0; let currentRotateX = 0; let currentRotateY = 0;
+    let velocityX = 0; let velocityY = 0; const tension = 0.04; const friction = 0.82; 
+    let currentRadius = 0; let targetRadius = 0;
+    let lastClientX = -1000; let lastClientY = -1000; let globalMouseX = -1000; let globalMouseY = -1000;
+    let heroWidth = window.innerWidth; let heroHeight = window.innerHeight;
+
+    function animate3D() {
+      velocityX += (targetRotateX - currentRotateX) * tension; velocityY += (targetRotateY - currentRotateY) * tension;
+      velocityX *= friction; velocityY *= friction;
+      currentRotateX += velocityX; currentRotateY += velocityY;
+      const transformString = `rotateX(${currentRotateX}deg) rotateY(${currentRotateY}deg)`;
+      groupBase.style.transform = transformString; groupHover.style.transform = transformString;
+
+      currentRadius += (targetRadius - currentRadius) * 0.15;
+      layerHover.style.setProperty('--circle-size', `${currentRadius}px`);
+
+      const renderX = Math.max(currentRadius, Math.min(heroWidth - currentRadius, globalMouseX));
+      const renderY = Math.max(currentRadius, Math.min(heroHeight - currentRadius, globalMouseY));
+      layerHover.style.setProperty('--mouse-x', `${renderX}px`);
+      layerHover.style.setProperty('--mouse-y', `${renderY}px`);
+
+      requestAnimationFrame(animate3D); 
+    }
+    animate3D(); 
+
+    const languageCombos = [
+      { prefix: "你好，我是", name: "幻森" }, { prefix: "안녕하세요, 저는", name: "Huansen" },
+      { prefix: "Привет, я", name: "Huansen" }, { prefix: "Hello, I am", name: "幻森" }
+    ];
+
+    function changeLanguage() {
+      const randomCombo = languageCombos[Math.floor(Math.random() * languageCombos.length)];
+      transPrefix.innerText = randomCombo.prefix; transName.innerText = randomCombo.name;
+    }
+
+    function handleInteraction(clientX, clientY) {
+      const heroRect = heroSection.getBoundingClientRect();
+      heroWidth = heroRect.width; heroHeight = heroRect.height;
+      globalMouseX = clientX - heroRect.left; globalMouseY = clientY - heroRect.top;
+      
+      const groupWidth = heroRect.width * 0.96; const groupHeight = heroRect.height * 0.72;
+      const groupLeft = (heroRect.width - groupWidth) / 2; const groupRight = groupLeft + groupWidth;
+      const groupTop = (heroRect.height - groupHeight) / 2; const groupBottom = groupTop + groupHeight;
+      const safeMargin = 145;
+      const minX = Math.max(groupLeft, safeMargin); const maxX = Math.min(groupRight, heroRect.width - safeMargin);
+      const minY = Math.max(groupTop, safeMargin); const maxY = Math.min(groupBottom, heroRect.height - safeMargin);
+
+      const inBounds = globalMouseX >= minX && globalMouseX <= maxX && globalMouseY >= minY && globalMouseY <= maxY;
+
+      if (inBounds) {
+        const centerX = heroRect.left + heroRect.width / 2; const centerY = heroRect.top + heroRect.height / 2;
+        targetRotateX = (centerY - clientY) / 25; targetRotateY = (clientX - centerX) / 25;
+        if (!isHovering) {
+          layerHover.style.opacity = '1'; targetRadius = 140; isHovering = true;
+          changeLanguage(); hoverInterval = setInterval(changeLanguage, 750);
+        }
+      } else {
+        targetRotateX = 0; targetRotateY = 0; 
+        if (isHovering) {
+          layerHover.style.opacity = '0'; targetRadius = 0; isHovering = false;
+          clearInterval(hoverInterval);
+        }
+      }
+    }
+
+    window.addEventListener('mousemove', (e) => {
+      lastClientX = e.clientX; lastClientY = e.clientY;
+      handleInteraction(lastClientX, lastClientY);
+    });
+    window.addEventListener('scroll', () => {
+      if (lastClientX !== -1000) { handleInteraction(lastClientX, lastClientY); }
+    });
+
+    // ==========================================
+    // 4. 第二屏：可视化卡片弹幕
+    // ==========================================
+    const dictSpecialties = ["Specialties?", "特技は？", "특기?", "Spécialités ?", "Especialidades?", "Способности?", "Fachgebiete?", "مهارت‌ها？", "Competenze?", "Habilidades?"];
+    const dictInterests = ["Interests?", "趣味は？", "취미?", "Intérêts ?", "Intereses?", "Интересы?", "Interessen?", "هوايات？", "Interessi?", "Zainteresowania?"];
+    const dictPersonality = ["Personality?", "性格は？", "성격?", "Personnalité ?", "Personalidad?", "Характер?", "Persönlichkeit?", "شخصية？", "Personalità?", "Osobliwość?"];
+
+    function generateDanmaku(containerId, wordsArray, count) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      for (let i = 0; i < count; i++) {
+        const span = document.createElement('span');
+        span.innerText = wordsArray[Math.floor(Math.random() * wordsArray.length)];
+        span.className = 'danmaku-item';
+        span.style.top = `${Math.floor(Math.random() * 80) + 10}%`;
+        span.style.fontSize = `${Math.floor(Math.random() * 14) + 14}px`; 
+        span.style.opacity = `${Math.random() * 0.3 + 0.2}`; 
+        
+        const isLtr = Math.random() > 0.5;
+        span.style.animationName = isLtr ? 'flowRight' : 'flowLeft';
+        span.style.animationDuration = `${Math.floor(Math.random() * 20) + 15}s`;
+        span.style.animationTimingFunction = 'linear';
+        span.style.animationIterationCount = 'infinite';
+        span.style.animationDelay = `-${Math.floor(Math.random() * 40)}s`; 
+        container.appendChild(span);
+      }
+    }
+
+    // ==========================================
+    // 5. 第三屏：鼠标拖拽横滑引擎
+    // ==========================================
+    const horizontalTrack = document.getElementById('horizontalTrack');
+    let isDown = false; let startX; let scrollLeft;
+
+    horizontalTrack.addEventListener('mousedown', (e) => {
+      isDown = true; horizontalTrack.style.cursor = 'grabbing'; 
+      startX = e.pageX - horizontalTrack.offsetLeft; scrollLeft = horizontalTrack.scrollLeft;
+    });
+    horizontalTrack.addEventListener('mouseleave', () => { isDown = false; horizontalTrack.style.cursor = 'grab'; });
+    horizontalTrack.addEventListener('mouseup', () => { isDown = false; horizontalTrack.style.cursor = 'grab'; });
+    horizontalTrack.addEventListener('mousemove', (e) => {
+      if (!isDown) return; 
+      e.preventDefault(); 
+      const x = e.pageX - horizontalTrack.offsetLeft;
+      const walk = (x - startX) * 1.5; 
+      horizontalTrack.scrollLeft = scrollLeft - walk;
+    });
+
+    // ==========================================
+    // 6. 初始化与 Intersection Observer
+    // ==========================================
+    window.addEventListener('DOMContentLoaded', () => {
+      generateDanmaku('cardSpecialties', dictSpecialties, 25);
+      generateDanmaku('cardInterests', dictInterests, 25);
+      generateDanmaku('cardPersonality', dictPersonality, 25);
+
+      const filterButtons = document.querySelectorAll('.project-filter button');
+      const projectCards = document.querySelectorAll('.project-card');
+      filterButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          const filter = button.dataset.filter;
+          filterButtons.forEach(item => {
+            const isActive = item === button;
+            item.classList.toggle('is-active', isActive);
+            item.setAttribute('aria-pressed', String(isActive));
+          });
+          projectCards.forEach(card => {
+            const categories = card.dataset.category.split(' ');
+            card.classList.toggle('is-hidden', filter !== 'all' && !categories.includes(filter));
+          });
+        });
+      });
+
+      const cards = document.querySelectorAll('.card-wrapper');
+      cards.forEach(card => {
+        card.addEventListener('mouseenter', () => { playFlipSound(); });
+      });
+
+      const videos = document.querySelectorAll('.archive-item video');
+      const videoObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.play().catch(e => console.log("等待交互后自动播放"));
+          } else {
+            entry.target.pause();
+          }
+        });
+      }, { threshold: 0.5 }); 
+
+      videos.forEach(video => { videoObserver.observe(video); });
+    });
+
+    // ==========================================
+    // 7. 第四屏：磁吸排印与阻尼回弹引擎
+    // ==========================================
+    const footerArea = document.getElementById('footerSection');
+    const magneticWrap = document.getElementById('magneticWrap');
+    const contactMask = document.getElementById('contactMask');
+    const copyToast = document.getElementById('copyToast');
+    const emailMagneticWrap = document.getElementById('emailMagneticWrap');
+
+    footerArea.addEventListener('mousemove', (e) => {
+      const rect = magneticWrap.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const distX = e.clientX - centerX;
+      const distY = e.clientY - centerY;
+
+      const distance = Math.hypot(distX, distY);
+      if(distance < 400) {
+        contactMask.style.transform = `translate(${distX * 0.15}px, ${distY * 0.25}px) rotate(${distX * 0.01}deg)`;
+      } else {
+        contactMask.style.transform = `translate(0px, 0px) rotate(0deg)`;
+      }
+
+      const emailRect = emailMagneticWrap.getBoundingClientRect();
+      const emailCenterX = emailRect.left + emailRect.width / 2;
+      const emailCenterY = emailRect.top + emailRect.height / 2;
+      const emailDistX = e.clientX - emailCenterX;
+      const emailDistY = e.clientY - emailCenterY;
+      
+      const emailDistance = Math.hypot(emailDistX, emailDistY);
+      if(emailDistance < 200) {
+        emailMagneticWrap.style.transform = `translate(${emailDistX * 0.08}px, ${emailDistY * 0.15}px)`;
+      } else {
+        emailMagneticWrap.style.transform = `translate(0px, 0px)`;
+      }
+    });
+
+    footerArea.addEventListener('mouseleave', () => {
+      contactMask.style.transform = `translate(0px, 0px) rotate(0deg)`;
+      emailMagneticWrap.style.transform = `translate(0px, 0px)`;
+    });
+
+    magneticWrap.addEventListener('click', () => {
+      navigator.clipboard.writeText('hhuanliu439@gmail.com').then(() => {
+        playCopySound(); 
+        copyToast.classList.add('show');
+        setTimeout(() => { copyToast.classList.remove('show'); }, 2000);
+      });
+    });
+
+    const emailLink = document.querySelector('.email-link');
+    emailLink.addEventListener('click', () => {
+        playCopySound();
+    });
+
+  </script>
+</body>
+</html>
